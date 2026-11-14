@@ -1,0 +1,197 @@
+// Prisma Schema for SBPPA Matriks Pembelajaran (MP)
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model School {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g. WBA0042
+  name        String   // e.g. SK Seri Bintang Selatan
+  ppd         String   // e.g. Pejabat Pendidikan Daerah Bangsar / Pudu
+  state       String   // e.g. W.P. Kuala Lumpur
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+  classes     Class[]
+  cycles      AssessmentCycle[]
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  name         String
+  role         String      // SUPER_ADMIN, COORDINATOR, TEACHER, KPMP, LEADER, DATA_OFFICER
+  schoolId     String
+  school       School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subjectHeadOf String?    // Subject code if KPMP
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  teacherAssignments TeacherAssignment[]
+  auditLogs          AuditLog[]
+  moderations        ModerationRecord[]
+}
+
+model Class {
+  id          String   @id @default(cuid())
+  name        String   // e.g. 4 Cemerlang
+  gradeLevel  Int      // e.g. 4
+  year        String   // e.g. 2026/2027
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  students    Student[]
+  assignments TeacherAssignment[]
+  scoreRecords ScoreRecord[]
+
+  @@unique([schoolId, gradeLevel, name, year])
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g. MP01, MP02
+  name        String   // e.g. Bahasa Melayu, Matematik
+  minScore    Float    @default(0)
+  maxScore    Float    @default(100)
+  weight      Float    @default(1.0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments TeacherAssignment[]
+  scoreRecords ScoreRecord[]
+}
+
+model Student {
+  id           String   @id @default(cuid())
+  mykid        String   @unique // e.g. 160412-14-1234
+  studentId    String   @unique // School student registration no e.g. S16001
+  fullName     String
+  gender       String   // L = Lelaki, P = Perempuan
+  classId      String
+  class        Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  scoreRecords ScoreRecord[]
+}
+
+model AssessmentCycle {
+  id            String   @id @default(cuid())
+  name          String   // e.g. Kitaran 1 - Pertengahan Sesi 2026/2027
+  academicYear  String   // 2026/2027
+  term          Int      // 1 or 2
+  targetLevel   Int      // 4 (Tahun 4)
+  startDate     DateTime
+  endDate       DateTime
+  status        String   @default("DRAFT") // DRAFT, ACTIVE, CLOSED, LOCKED
+  schoolId      String
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  scoreRecords  ScoreRecord[]
+}
+
+model TeacherAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, classId, subjectId])
+}
+
+model ScoreRecord {
+  id              String          @id @default(cuid())
+  studentId       String
+  student         Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId         String
+  class           Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId       String
+  subject         Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  cycleId         String
+  cycle           AssessmentCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  
+  rawScore        Float?          // 0 - 100
+  masteryLevel    Int?            // TP 1 - 6
+  status          String          @default("DRAFT") // DRAFT, SUBMITTED, VALIDATED, MODERATED, APPROVED, EXPORT_READY, LOCKED
+  correctionReason String?
+  isSampled       Boolean         @default(false)
+  
+  submittedAt     DateTime?
+  submittedBy     String?
+  approvedAt      DateTime?
+  approvedBy      String?
+  lockedAt        DateTime?
+  lockedBy        String?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  scoreHistories  ScoreHistory[]
+  moderations     ModerationRecord[]
+
+  @@unique([studentId, subjectId, cycleId])
+}
+
+model ScoreHistory {
+  id            String      @id @default(cuid())
+  scoreRecordId String
+  scoreRecord   ScoreRecord @relation(fields: [scoreRecordId], references: [id], onDelete: Cascade)
+  oldRawScore   Float?
+  newRawScore   Float?
+  oldStatus     String?
+  newStatus     String?
+  reason        String?
+  changedBy     String      // User Name / Email
+  changedAt     DateTime    @default(now())
+}
+
+model ModerationRecord {
+  id            String      @id @default(cuid())
+  scoreRecordId String
+  scoreRecord   ScoreRecord @relation(fields: [scoreRecordId], references: [id], onDelete: Cascade)
+  moderatorId   String
+  moderator     User        @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
+  originalScore Float
+  moderatedScore Float?
+  decision      String      // APPROVED, NEEDS_CORRECTION, REJECTED
+  comments      String?
+  moderatedAt   DateTime    @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName   String
+  userRole   String
+  action     String   // SCORE_ENTER, SCORE_SUBMIT, SCORE_MODERATE, ROSTER_IMPORT, EXPORT_SBPPA, UNLOCK_REQUEST, etc.
+  entityType String   // SCORE, ROSTER, CYCLE, SYSTEM, INTEGRATION
+  entityId   String?
+  details    String   // JSON string of changes / description
+  ipAddress  String?  @default("127.0.0.1")
+  userAgent  String?
+  createdAt  DateTime @default(now())
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
