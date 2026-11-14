@@ -275,21 +275,29 @@ router.post('/batch-save', async (req, res) => {
   }
 });
 
-// Transition Workflow Status for a class & subject
+// Transition Workflow Status for a class & subject (or ALL classes if admin)
 router.post('/workflow-transition', async (req, res) => {
   try {
-    const { cycleId, classId, subjectId, targetStatus, userId, userName, userRole, comments } = req.body;
+    const { cycleId: rawCycleId, classId, subjectId, targetStatus, userId, userName, userRole, comments } = req.body;
+    const cycleId = rawCycleId || req.body.assessmentCycleId;
 
-    if (!cycleId || !classId || !subjectId || !targetStatus) {
-      return res.status(400).json({ error: 'Parameter tidak lengkap.' });
+    if (!cycleId || !targetStatus) {
+      return res.status(400).json({ error: 'Parameter tidak lengkap: cycleId dan targetStatus diperlukan.' });
     }
 
+    const isAllClasses = !classId || classId === 'ALL';
+    const isAllSubjects = !subjectId || subjectId === 'ALL';
+
+    const whereClause: any = { cycleId };
+    if (!isAllClasses) whereClause.classId = classId;
+    if (!isAllSubjects) whereClause.subjectId = subjectId;
+
     const records = await prisma.scoreRecord.findMany({
-      where: { cycleId, classId, subjectId },
+      where: whereClause,
     });
 
     if (records.length === 0) {
-      return res.status(400).json({ error: 'Tiada rekod skor dijumpai untuk kelas dan mata pelajaran ini.' });
+      return res.status(400).json({ error: 'Tiada rekod skor dijumpai untuk kriteria ini.' });
     }
 
     const currentStatus = records[0].status as WorkflowStatus;
@@ -323,7 +331,7 @@ router.post('/workflow-transition', async (req, res) => {
     }
 
     await prisma.scoreRecord.updateMany({
-      where: { cycleId, classId, subjectId },
+      where: whereClause,
       data: updateData,
     });
 
@@ -334,7 +342,7 @@ router.post('/workflow-transition', async (req, res) => {
           scoreRecordId: r.id,
           oldRawScore: r.rawScore,
           newRawScore: r.rawScore,
-          oldStatus: currentStatus,
+          oldStatus: r.status,
           newStatus: targetStatus,
           reason: comments || `Peralihan status ke ${targetStatus}`,
           changedBy: userName || 'Pengguna',
@@ -345,12 +353,12 @@ router.post('/workflow-transition', async (req, res) => {
     // Record Audit Log
     await prisma.auditLog.create({
       data: {
-        userId,
+        userId: userId || 'unknown',
         userName: userName || 'Pengguna',
         userRole: userRole || 'UNKNOWN',
         action: `WORKFLOW_${targetStatus}`,
         entityType: 'SCORE',
-        entityId: `${classId}_${subjectId}`,
+        entityId: `${classId || 'ALL'}_${subjectId || 'ALL'}`,
         details: JSON.stringify({
           fromStatus: currentStatus,
           toStatus: targetStatus,
@@ -366,6 +374,91 @@ router.post('/workflow-transition', async (req, res) => {
       previousStatus: currentStatus,
       newStatus: targetStatus,
       updatedCount: records.length,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin Bulk Approval: Approve all records for the cycle (Super Admin / Leader)
+router.post('/admin-approve-all', async (req, res) => {
+  try {
+    const { cycleId: rawCycleId, userId, userName, userRole, comments } = req.body;
+    const cycleId = rawCycleId || req.body.assessmentCycleId;
+
+    if (!cycleId) {
+      return res.status(400).json({ error: 'cycleId diperlukan.' });
+    }
+
+    if (userRole !== 'SUPER_ADMIN' && userRole !== 'LEADER') {
+      return res.status(403).json({ error: 'Hanya Pentadbir Sekolah (SUPER_ADMIN / LEADER) mempunyai kuasa meluluskan semua rekod sekolah.' });
+    }
+
+    // Find all records that are not yet APPROVED, EXPORT_READY, or LOCKED
+    const pendingRecords = await prisma.scoreRecord.findMany({
+      where: {
+        cycleId,
+        status: { in: ['DRAFT', 'SUBMITTED', 'VALIDATED', 'MODERATED'] }
+      }
+    });
+
+    if (pendingRecords.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Semua rekod skor pentaksiran bagi kitaran ini telah pun diluluskan sebelumnya.',
+        updatedCount: 0
+      });
+    }
+
+    // Bulk update to APPROVED
+    await prisma.scoreRecord.updateMany({
+      where: {
+        cycleId,
+        status: { in: ['DRAFT', 'SUBMITTED', 'VALIDATED', 'MODERATED'] }
+      },
+      data: {
+        status: 'APPROVED',
+        approvedAt: new Date(),
+        approvedBy: userName || 'Pentadbir Utama Sistem'
+      }
+    });
+
+    // Record score history
+    for (const r of pendingRecords) {
+      await prisma.scoreHistory.create({
+        data: {
+          scoreRecordId: r.id,
+          oldRawScore: r.rawScore,
+          newRawScore: r.rawScore,
+          oldStatus: r.status,
+          newStatus: 'APPROVED',
+          reason: comments || 'Kelulusan rasmi pentadbir sekolah (SUPER_ADMIN)',
+          changedBy: userName || 'Pentadbir Utama Sistem',
+        }
+      });
+    }
+
+    // Audit Log
+    await prisma.auditLog.create({
+      data: {
+        userId: userId || 'admin',
+        userName: userName || 'Pentadbir Utama Sistem',
+        userRole: userRole || 'SUPER_ADMIN',
+        action: 'ADMIN_APPROVE_ALL',
+        entityType: 'SCORE',
+        entityId: cycleId,
+        details: JSON.stringify({
+          updatedCount: pendingRecords.length,
+          comments: comments || 'Kelulusan rasmi pukal pentadbir sekolah bagi keseluruhan rekod Tahun 4.'
+        }),
+        ipAddress: req.ip || '127.0.0.1'
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Sebanyak ${pendingRecords.length} rekod skor berjaya diluluskan secara rasmi oleh ${userName || 'Pentadbir'}!`,
+      updatedCount: pendingRecords.length
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

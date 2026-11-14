@@ -188,7 +188,7 @@ export const ModerationView: React.FC = () => {
     }
   };
 
-  // Approve all moderated records (Coordinator / Admin / Leader)
+  // Approve all moderated records for selected class & subject (Coordinator / Admin / Leader)
   const handleApproveBatch = async () => {
     if (!confirm(t(
       'Adakah anda pasti untuk meluluskan semua rekod skor bagi kelas dan mata pelajaran ini?',
@@ -201,6 +201,7 @@ export const ModerationView: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cycleId: activeCycle?.id,
+          assessmentCycleId: activeCycle?.id,
           classId: selectedClassId,
           subjectId: selectedSubjectId,
           targetStatus: 'APPROVED',
@@ -215,7 +216,41 @@ export const ModerationView: React.FC = () => {
       if (!res.ok) {
         alert(data.error || 'Gagal meluluskan rekod.');
       } else {
-        alert(t('Semua rekod berjaya diluluskan!', 'All records approved successfully!'));
+        alert(t('Semua rekod kelas ini berjaya diluluskan!', 'All records for this class approved successfully!'));
+        triggerReloadStats();
+        fetchRecords();
+      }
+    } catch (err: any) {
+      alert('Ralat: ' + err.message);
+    }
+  };
+
+  // Bulk Approve entire school assessment for active cycle (Super Admin / Leader)
+  const handleApproveAllSchool = async () => {
+    if (!confirm(t(
+      'Adakah anda pasti untuk meluluskan SEMUA rekod skor bagi keseluruhan Sekolah Agama Suria (Tahun 4)? Tindakan ini akan mengesahkan kelulusan rasmi di peringkat pentadbir sekolah.',
+      'Are you sure you want to approve ALL school score records for SAS (Year 4)? This will execute official administrator approval.'
+    ))) return;
+
+    try {
+      const res = await fetch('/api/scores/admin-approve-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cycleId: activeCycle?.id,
+          assessmentCycleId: activeCycle?.id,
+          userId: currentUser.id,
+          userName: currentUser.name,
+          userRole: currentUser.role,
+          comments: 'Kelulusan pukal rasmi pentadbir sekolah (SUPER_ADMIN).',
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Gagal meluluskan semua rekod sekolah.');
+      } else {
+        alert(data.message || t('Semua rekod sekolah berjaya diluluskan secara rasmi!', 'All school records approved successfully!'));
         triggerReloadStats();
         fetchRecords();
       }
@@ -294,9 +329,21 @@ export const ModerationView: React.FC = () => {
               <button
                 onClick={handleApproveBatch}
                 className="bg-[#7D121D] hover:bg-[#580B12] text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm border border-amber-400/30"
+                title="Luluskan semua rekod bagi kelas dan mata pelajaran yang dipilih semasa"
               >
                 <CheckCircle2 className="w-4 h-4 text-amber-300" />
-                <span>{t('Luluskan Semua Rekod', 'Approve All Records')}</span>
+                <span>{t('Luluskan Kelas Ini', 'Approve This Class')}</span>
+              </button>
+            )}
+
+            {(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'LEADER') && (
+              <button
+                onClick={handleApproveAllSchool}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm border border-emerald-500/50"
+                title="Kelulusan rasmi pentadbir sekolah bagi keseluruhan rekod Tahun 4"
+              >
+                <ShieldCheck className="w-4 h-4 text-emerald-300" />
+                <span>{t('Luluskan Keseluruhan Sekolah', 'Approve All School Records')}</span>
               </button>
             )}
 

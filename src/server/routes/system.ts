@@ -234,31 +234,61 @@ router.get('/pending-workflow-users', async (req, res) => {
     }
 
     // 4. Check Super Admin / Leader (Official School Approval)
-    const superAdmin = users.find(u => u.role === 'SUPER_ADMIN');
+    const currentQueryUserId = req.query.userId as string | undefined;
+    const superAdmins = users.filter(u => u.role === 'SUPER_ADMIN');
+    const superAdmin = (currentQueryUserId ? superAdmins.find(u => u.id === currentQueryUserId) : null) || superAdmins[0];
+
     const approvedCount = records.filter(r => r.status === 'APPROVED' || r.status === 'EXPORT_READY' || r.status === 'LOCKED').length;
     const totalRecordsCount = records.length;
     const pendingApprovalCount = Math.max(0, totalRecordsCount - approvedCount);
+    const readyForAdminApproval = records.filter(r => r.status === 'VALIDATED' || r.status === 'MODERATED').length;
+    const draftCount = records.filter(r => r.status === 'DRAFT').length;
 
-    if (superAdmin && pendingApprovalCount > 0) {
-      pendingTasks.push({
-        id: `task-admin-${superAdmin.id}`,
-        userId: superAdmin.id,
-        userName: superAdmin.name,
-        userEmail: superAdmin.email,
-        userRole: superAdmin.role,
-        roleTitle: 'Pentadbir Utama Sistem',
-        taskType: 'Kelulusan Rasmi Pentadbir Sekolah',
-        scope: 'Tahun 4 • Semua Mata Pelajaran',
-        className: 'Semua Kelas',
-        affectedCount: pendingApprovalCount,
-        status: 'PENDING',
-        statusLabel: `${pendingApprovalCount} / ${totalRecordsCount} Rekod Belum Diluluskan`,
-        urgency: 'HIGH',
-        deadline: 'Sebelum 25/11/2026',
-        description: 'Kelulusan rasmi pentadbir sekolah diperlukan sebelum fail penyediaan SBPPA rasmi boleh disahkan dan dieksport.',
-        targetTab: 'moderation',
-        actionLabel: 'Buka Kelulusan Rasmi',
-      });
+    if (superAdmin) {
+      if (readyForAdminApproval > 0) {
+        // Records that are actively awaiting admin approval
+        pendingTasks.push({
+          id: `task-admin-${superAdmin.id}`,
+          userId: superAdmin.id,
+          userName: superAdmin.name,
+          userEmail: superAdmin.email,
+          userRole: superAdmin.role,
+          roleTitle: 'Pentadbir Utama Sistem',
+          taskType: 'Kelulusan Rasmi Pentadbir Sekolah',
+          scope: 'Tahun 4 • Semua Mata Pelajaran',
+          className: 'Semua Kelas',
+          affectedCount: readyForAdminApproval,
+          status: 'PENDING',
+          statusLabel: `${readyForAdminApproval} Rekod Menunggu Kelulusan`,
+          urgency: 'HIGH',
+          deadline: 'Sebelum 25/11/2026',
+          description: `Terdapat ${readyForAdminApproval} rekod pentaksiran yang telah disemak dan kini sedia untuk kelulusan rasmi pentadbir sekolah.`,
+          targetTab: 'moderation',
+          actionLabel: 'Sahkan Kelulusan Rasmi',
+        });
+      } else if (pendingApprovalCount > 0 && draftCount > 0) {
+        // Admin has approved all submitted records. Remaining records are still in draft by teachers.
+        pendingTasks.push({
+          id: `task-admin-${superAdmin.id}`,
+          userId: superAdmin.id,
+          userName: superAdmin.name,
+          userEmail: superAdmin.email,
+          userRole: superAdmin.role,
+          roleTitle: 'Pentadbir Utama Sistem',
+          taskType: 'Kelulusan Rasmi Pentadbir Sekolah',
+          scope: 'Tahun 4 • Semua Mata Pelajaran',
+          className: 'Semua Kelas',
+          affectedCount: draftCount,
+          status: 'WAITING',
+          statusLabel: `Menunggu Penyerahan Guru (${draftCount} Draf)`,
+          urgency: 'MEDIUM',
+          deadline: 'Sebelum 25/11/2026',
+          description: `Semua rekod yang dihantar telah diluluskan (${approvedCount}/${totalRecordsCount} Rekod). Menunggu guru melengkapkan skor draf sebelum kelulusan akhir.`,
+          targetTab: 'moderation',
+          actionLabel: 'Semak Status Sekolah',
+        });
+      }
+      // If pendingApprovalCount === 0 (100% approved), no pending task for admin
     }
 
     // 5. Check Data Officer (Export SBPPA Package)

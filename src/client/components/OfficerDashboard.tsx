@@ -46,7 +46,7 @@ interface OfficerDashboardStats {
 }
 
 export const OfficerDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }) => {
-  const { activeCycle, t, reloadStatsTrigger } = useApp();
+  const { activeCycle, t, reloadStatsTrigger, currentUser, triggerReloadStats } = useApp();
   const [stats, setStats] = useState<OfficerDashboardStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
@@ -63,6 +63,9 @@ export const OfficerDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
     DATA_OFFICER: 'bg-cyan-100 text-cyan-900 border-cyan-300 font-bold',
   };
 
+  const [adminApprovalModal, setAdminApprovalModal] = useState<any>(null);
+  const [approving, setApproving] = useState<boolean>(false);
+
   useEffect(() => {
     if (!activeCycle) return;
     setLoading(true);
@@ -77,13 +80,44 @@ export const OfficerDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
         setLoading(false);
       });
 
-    fetch(`/api/system/pending-workflow-users?cycleId=${activeCycle.id}`)
+    fetch(`/api/system/pending-workflow-users?cycleId=${activeCycle.id}&userId=${currentUser?.id || ''}`)
       .then(res => res.json())
       .then(data => {
         if (data.tasks) setPendingTasks(data.tasks);
       })
       .catch(err => console.error('Error fetching pending workflow tasks:', err));
-  }, [activeCycle, reloadStatsTrigger]);
+  }, [activeCycle, reloadStatsTrigger, currentUser?.id]);
+
+  const handleExecuteAdminApproval = async () => {
+    if (!activeCycle) return;
+    setApproving(true);
+    try {
+      const res = await fetch('/api/scores/admin-approve-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cycleId: activeCycle.id,
+          userId: currentUser?.id,
+          userName: currentUser?.name,
+          userRole: currentUser?.role,
+          comments: 'Kelulusan rasmi pentadbir sekolah disahkan oleh ' + (currentUser?.name || 'Pentadbir'),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Gagal melaksanakan kelulusan pentadbir.');
+      } else {
+        alert(data.message || 'Kelulusan rasmi pentadbir sekolah berjaya disahkan!');
+        setAdminApprovalModal(null);
+        triggerReloadStats();
+      }
+    } catch (err: any) {
+      alert('Ralat: ' + err.message);
+    } finally {
+      setApproving(false);
+    }
+  };
 
   const filteredTasks = pendingTasks.filter(task => {
     const matchesRole = selectedTaskFilter === 'ALL' || task.userRole === selectedTaskFilter;
@@ -482,20 +516,38 @@ export const OfficerDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
                       <div className="text-[11px] text-slate-600 mt-0.5 leading-tight">{task.description}</div>
                     </td>
                     <td className="py-3 px-3">
-                      <span className="text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-1 rounded-full inline-flex items-center gap-1 shadow-2xs">
-                        <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                        BELUM SELESAI
-                      </span>
+                      {task.status === 'WAITING' ? (
+                        <span className="text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300 px-2.5 py-1 rounded-full inline-flex items-center gap-1 shadow-2xs">
+                          <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          MENUNGGU ALIRAN KERJA
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-1 rounded-full inline-flex items-center gap-1 shadow-2xs">
+                          <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                          BELUM SELESAI
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-3 text-right">
-                      <button
-                        onClick={() => onNavigate(task.targetTab || task.actionUrl || 'scores')}
-                        className="bg-[#7D121D] hover:bg-[#580B12] text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl transition cursor-pointer shadow-xs inline-flex items-center gap-1"
-                        title={`Buka modul ${task.actionLabel}`}
-                      >
-                        <span>{task.actionLabel}</span>
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
+                      {task.taskType === 'Kelulusan Rasmi Pentadbir Sekolah' && (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'LEADER') ? (
+                        <button
+                          onClick={() => setAdminApprovalModal(task)}
+                          className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl transition cursor-pointer shadow-xs inline-flex items-center gap-1 border border-emerald-500/50"
+                          title="Buka panel kelulusan rasmi pentadbir sekolah"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                          <span>Luluskan Rekod Pentadbir</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => onNavigate(task.targetTab || task.actionUrl || 'scores')}
+                          className="bg-[#7D121D] hover:bg-[#580B12] text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl transition cursor-pointer shadow-xs inline-flex items-center gap-1"
+                          title={`Buka modul ${task.actionLabel}`}
+                        >
+                          <span>{task.actionLabel}</span>
+                          <ChevronRight className="w-3 h-3" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -504,6 +556,58 @@ export const OfficerDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
           </table>
         </div>
       </div>
+
+      {/* Admin Approval Confirmation Modal */}
+      {adminApprovalModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border-2 border-amber-300 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                <h3 className="font-extrabold text-slate-900 text-base">
+                  Kelulusan Rasmi Pentadbir Sekolah (SAS)
+                </h3>
+              </div>
+              <button
+                onClick={() => setAdminApprovalModal(null)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs space-y-1.5 text-slate-700">
+              <div>Pegawai Pengesah: <strong className="text-slate-900">{currentUser?.name}</strong> ({currentUser?.role})</div>
+              <div>Skop Pentaksiran: <strong>Tahun 4 • Semua Kelas & Semua Mata Pelajaran</strong></div>
+              <div>Kitaran: <strong>{activeCycle?.name}</strong></div>
+              <div>Status Rekod Sekolah: <strong className="text-emerald-700">{stats.readyForSbppaCount} / {stats.totalRecords} Rekod Telah Sedia</strong></div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Dengan mengesahkan tindakan ini, anda memberikan kelulusan rasmi pentadbir sekolah ke atas rekod pentaksiran murid Sekolah Agama Suria, membolehkan fail penyediaan SBPPA rasmi dijana dan status tindakan pentadbir diselesaikan secara rasmi.
+            </p>
+
+            <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAdminApprovalModal(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={approving}
+                onClick={handleExecuteAdminApproval}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white transition shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{approving ? 'Memproses Kelulusan...' : 'Sahkan & Luluskan Sekarang'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Official Officer Profile & Assignment Detail Modal */}
       <OfficerDetailModal
