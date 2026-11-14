@@ -28,6 +28,30 @@ router.get('/readiness-checklist', async (req, res) => {
     const totalSampled = records.filter(r => r.isSampled).length;
     const samplePercentage = records.length > 0 ? (totalSampled / records.length) * 100 : 0;
 
+    // Analyze quorum per subject
+    const subjectQuorumMap: Record<string, { code: string; name: string; total: number; sampled: number; percentage: number; isMet: boolean }> = {};
+    for (const r of records) {
+      const code = r.subject.code;
+      if (!subjectQuorumMap[code]) {
+        subjectQuorumMap[code] = {
+          code,
+          name: r.subject.name,
+          total: 0,
+          sampled: 0,
+          percentage: 0,
+          isMet: false,
+        };
+      }
+      subjectQuorumMap[code].total++;
+      if (r.isSampled) subjectQuorumMap[code].sampled++;
+    }
+    const subjectQuorums = Object.values(subjectQuorumMap).map(s => {
+      s.percentage = s.total > 0 ? (s.sampled / s.total) * 100 : 0;
+      s.isMet = s.percentage >= 10.0;
+      return s;
+    });
+    const unmetSubjects = subjectQuorums.filter(s => !s.isMet);
+
     const totalApproved = records.filter(r => ['APPROVED', 'EXPORT_READY', 'LOCKED'].includes(r.status)).length;
     const totalPendingCorrection = records.filter(r => r.status === 'DRAFT' && r.correctionReason?.includes('Maklum Balas Moderasi')).length;
 
@@ -52,9 +76,11 @@ router.get('/readiness-checklist', async (req, res) => {
         id: 'CH03',
         title: 'Kuorum Moderasi KPMP (Minimum 10%)',
         description: 'Ketua Panitia mesti menyemak dan memoderasi sekurang-kurangnya 10% sampel rawak rekod yang dihantar.',
-        passed: samplePercentage >= 10.0,
-        currentValue: `${samplePercentage.toFixed(1)}% sampel telah dimoderasi (${totalSampled} rekod)`,
+        passed: samplePercentage >= 10.0 && unmetSubjects.length === 0,
+        currentValue: `${samplePercentage.toFixed(1)}% sampel dimoderasi (${totalSampled}/${records.length} rekod)${unmetSubjects.length > 0 ? ` • Perlu sampel: ${unmetSubjects.map(u => `${u.code} (${u.percentage.toFixed(0)}%)`).join(', ')}` : ''}`,
         severity: 'CRITICAL',
+        unmetSubjects,
+        subjectQuorums,
       },
       {
         id: 'CH04',

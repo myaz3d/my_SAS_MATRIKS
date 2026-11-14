@@ -111,6 +111,45 @@ export const ModerationView: React.FC = () => {
     }
   };
 
+  // Generate >= 10% samples for all subjects & all classes in active cycle
+  const handleGenerateAllSchoolSample = async () => {
+    if (!activeCycle) return;
+    if (!confirm(t(
+      'Adakah anda pasti untuk menjana sampel moderasi minimum 10% bagi KESELURUHAN sekolah (semua panitia & semua kelas)? Ini akan memastikan kuorum CH03 SBPPA dipenuhi sepenuhnya.',
+      'Generate minimum 10% moderation sample for the ENTIRE school (all subjects & classes)? This will fulfill the SBPPA CH03 quorum.'
+    ))) return;
+
+    try {
+      const res = await fetch('/api/scores/sample-random', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cycleId: activeCycle.id,
+          classId: 'ALL',
+          subjectId: 'ALL',
+          samplePercentage: Math.max(10, sampleRate),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          userRole: currentUser.role,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Ralat menjana sampel sekolah.');
+      } else {
+        alert(data.message || t(
+          `Sampel rawak berjaya dijana bagi keseluruhan sekolah: ${data.sampledCount} rekod dipilih untuk moderasi KPMP.`,
+          `School-wide sample generated: ${data.sampledCount} records selected.`
+        ));
+        triggerReloadStats();
+        fetchRecords();
+      }
+    } catch (err: any) {
+      alert('Ralat rangkaian: ' + err.message);
+    }
+  };
+
   // Submit moderation decision
   const handleSubmitModeration = async () => {
     if (!moderationAction) return;
@@ -316,14 +355,26 @@ export const ModerationView: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleGenerateSample}
               className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm border border-amber-600/20"
+              title="Jana sampel bagi kelas dan mata pelajaran yang sedang dipilih"
             >
               <Shuffle className="w-4 h-4" />
-              <span>{t('Jana Sampel Rawak (≥10%)', 'Generate Random Sample')}</span>
+              <span>{t('Jana Sampel Kelas Ini (≥10%)', 'Generate Class Sample')}</span>
             </button>
+
+            {(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'COORDINATOR' || currentUser.role === 'LEADER') && (
+              <button
+                onClick={handleGenerateAllSchoolSample}
+                className="bg-amber-100 hover:bg-amber-200 text-amber-900 font-extrabold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm border border-amber-300"
+                title="Jana sampel rawak minimum 10% untuk semua panitia & kelas bagi memenuhi kuorum CH03 SBPPA"
+              >
+                <Shuffle className="w-4 h-4 text-amber-700" />
+                <span>{t('Jana Sampel Seluruh Sekolah (≥10%)', 'Generate School-wide Sample')}</span>
+              </button>
+            )}
 
             {(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'COORDINATOR' || currentUser.role === 'LEADER') && (
               <button

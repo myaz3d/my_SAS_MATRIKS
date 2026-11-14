@@ -470,10 +470,83 @@ router.post('/sample-random', async (req, res) => {
   try {
     const { cycleId, classId, subjectId, samplePercentage = 10, userId, userName, userRole } = req.body;
 
-    if (userRole !== 'KPMP' && userRole !== 'SUPER_ADMIN' && userRole !== 'COORDINATOR') {
-      return res.status(403).json({ error: 'Hanya KPMP atau Penyelaras boleh menjana sampel moderasi.' });
+    if (userRole !== 'KPMP' && userRole !== 'SUPER_ADMIN' && userRole !== 'COORDINATOR' && userRole !== 'LEADER') {
+      return res.status(403).json({ error: 'Hanya KPMP, Penyelaras atau Pentadbir boleh menjana sampel moderasi.' });
     }
 
+    const isSchoolWide = classId === 'ALL' || subjectId === 'ALL' || (!classId && !subjectId);
+
+    if (isSchoolWide) {
+      // Find all records in the cycle matching the filter
+      const whereClause: any = { cycleId };
+      if (classId && classId !== 'ALL') whereClause.classId = classId;
+      if (subjectId && subjectId !== 'ALL') whereClause.subjectId = subjectId;
+
+      const records = await prisma.scoreRecord.findMany({
+        where: whereClause,
+      });
+
+      if (records.length === 0) {
+        return res.status(400).json({ error: 'Tiada rekod skor untuk kitaran pentaksiran ini.' });
+      }
+
+      // Group records by subjectId and classId to guarantee at least 10% per subject and class
+      const groups: Record<string, typeof records> = {};
+      for (const r of records) {
+        const key = `${r.subjectId}_${r.classId}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(r);
+      }
+
+      const allSampledIds: string[] = [];
+      for (const key of Object.keys(groups)) {
+        const groupRecords = groups[key];
+        const sampled = selectRandomSample(groupRecords, samplePercentage);
+        allSampledIds.push(...sampled.map(s => s.id));
+      }
+
+      // Reset existing sampling for these records
+      const recordIds = records.map(r => r.id);
+      await prisma.scoreRecord.updateMany({
+        where: { id: { in: recordIds } },
+        data: { isSampled: false },
+      });
+
+      // Mark selected records as sampled
+      await prisma.scoreRecord.updateMany({
+        where: { id: { in: allSampledIds } },
+        data: { isSampled: true },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          userId,
+          userName: userName || 'KPMP / Pentadbir',
+          userRole: userRole || 'SUPER_ADMIN',
+          action: 'SCORE_SAMPLE_GENERATED',
+          entityType: 'SCORE',
+          entityId: `ALL_${cycleId}`,
+          details: JSON.stringify({
+            totalRecords: records.length,
+            sampledCount: allSampledIds.length,
+            percentage: ((allSampledIds.length / records.length) * 100).toFixed(1) + '%',
+            scope: 'KESELURUHAN_SEKOLAH_SEMUA_PANITIA',
+          }),
+          ipAddress: req.ip || '127.0.0.1',
+        },
+      });
+
+      return res.json({
+        success: true,
+        totalRecords: records.length,
+        sampledCount: allSampledIds.length,
+        sampledPercentage: ((allSampledIds.length / records.length) * 100).toFixed(1),
+        sampledIds: allSampledIds,
+        message: `Sebanyak ${allSampledIds.length} sampel rawak (≥10% bagi setiap panitia dan kelas) berjaya dijana! Kuorum KPM kini dipenuhi.`,
+      });
+    }
+
+    // Specific class and subject
     const records = await prisma.scoreRecord.findMany({
       where: { cycleId, classId, subjectId },
     });

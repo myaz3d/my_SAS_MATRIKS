@@ -11,7 +11,8 @@ import {
   Layers,
   FileCheck,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  Shuffle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DEFAULT_SBPPA_MAPPING, SBPPAColumnMapping } from '../../shared/types';
@@ -82,6 +83,41 @@ export const SBPPAExportPackage: React.FC<SBPPAExportPackageProps> = ({ onNaviga
           label: t('Papan Pemuka', 'Dashboard'),
           hint: t('Buka Papan Pemuka.', 'Open Dashboard.') 
         };
+    }
+  };
+
+  const [generatingQuorum, setGeneratingQuorum] = useState<boolean>(false);
+
+  const handleQuickGenerateAllSamples = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!activeCycle) return;
+    setGeneratingQuorum(true);
+    try {
+      const res = await fetch('/api/scores/sample-random', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cycleId: activeCycle.id,
+          classId: 'ALL',
+          subjectId: 'ALL',
+          samplePercentage: 10,
+          userId: currentUser?.id,
+          userName: currentUser?.name,
+          userRole: currentUser?.role,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Ralat menjana sampel.');
+      } else {
+        alert(data.message || t('Sampel rawak minimum 10% bagi semua panitia berjaya dijana secara automatik!', 'Samples generated for all panitia successfully!'));
+        fetchChecklist();
+        triggerReloadStats();
+      }
+    } catch (err: any) {
+      alert('Ralat: ' + err.message);
+    } finally {
+      setGeneratingQuorum(false);
     }
   };
 
@@ -315,6 +351,21 @@ export const SBPPAExportPackage: React.FC<SBPPAExportPackageProps> = ({ onNaviga
                       </span>
                     )}
                   </div>
+
+                  {item.id === 'CH03' && !item.passed && (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'COORDINATOR' || currentUser?.role === 'KPMP' || currentUser?.role === 'LEADER') && (
+                    <div className="mt-2.5 pt-2 border-t border-rose-200">
+                      <button
+                        type="button"
+                        onClick={handleQuickGenerateAllSamples}
+                        disabled={generatingQuorum}
+                        className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-[11px] py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                        title="Jana sampel rawak minimum 10% untuk semua panitia & kelas bagi melengkapkan kuorum SBPPA"
+                      >
+                        <Shuffle className="w-3.5 h-3.5 text-slate-900" />
+                        <span>{generatingQuorum ? t('Menjana Kuorum...', 'Generating...') : t('Jana Kuorum Automatik Semua Panitia (≥10%)', 'Auto-Generate Quorum for All Panitia')}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
