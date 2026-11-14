@@ -15,7 +15,9 @@ import {
   ArrowRight,
   Sparkles,
   School,
-  GraduationCap
+  GraduationCap,
+  RefreshCw,
+  UserX
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -24,6 +26,7 @@ interface ClassAssignment {
   teacherId: string;
   teacherName: string;
   teacherEmail: string;
+  teacherRole?: string;
   subjectId: string;
   subjectCode: string;
   subjectName: string;
@@ -100,11 +103,18 @@ export const ClassManagement: React.FC<{ onNavigate?: (tab: string) => void }> =
 
       if (Array.isArray(classesData)) setClasses(classesData);
       if (Array.isArray(subjectsData)) setSubjects(subjectsData);
-      if (usersData && Array.isArray(usersData.users)) {
-        const teachersList = usersData.users.filter((u: any) => 
-          ['TEACHER', 'KPMP', 'COORDINATOR'].includes(u.role)
-        );
-        setTeachers(teachersList);
+      
+      // Robust extraction of teacher list from array or object
+      const userList = Array.isArray(usersData) ? usersData : (usersData?.users || []);
+      const teachersList = userList.filter((u: any) => 
+        ['TEACHER', 'KPMP', 'COORDINATOR', 'SUPER_ADMIN'].includes(u.role)
+      );
+      setTeachers(teachersList);
+
+      // Refresh selectedClass if assign modal is open
+      if (selectedClass && Array.isArray(classesData)) {
+        const refreshed = classesData.find((c: ClassItem) => c.id === selectedClass.id);
+        if (refreshed) setSelectedClass(refreshed);
       }
     } catch (err) {
       console.error('Error loading class data:', err);
@@ -179,17 +189,16 @@ export const ClassManagement: React.FC<{ onNavigate?: (tab: string) => void }> =
     }
   };
 
-  const handleAssignTeacher = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedClass) return;
+  const handleAssignTeacher = async (subjectId: string, teacherId: string) => {
+    if (!selectedClass || !teacherId) return;
 
     try {
       const res = await fetch(`/api/classes/${selectedClass.id}/assignments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: assignForm.teacherId,
-          subjectId: assignForm.subjectId,
+          userId: teacherId,
+          subjectId: subjectId,
         }),
       });
 
@@ -197,9 +206,26 @@ export const ClassManagement: React.FC<{ onNavigate?: (tab: string) => void }> =
       if (!res.ok) throw new Error(data.error || 'Gagal menetapkan penugasan guru');
 
       setFeedbackMessage({ type: 'success', text: data.message });
-      setIsAssignModalOpen(false);
-      setSelectedClass(null);
       setAssignForm({ teacherId: '', subjectId: '' });
+      fetchData();
+    } catch (err: any) {
+      setFeedbackMessage({ type: 'error', text: err.message });
+    }
+  };
+
+  const handleDeleteAssignment = async (assignmentId: string) => {
+    if (!selectedClass) return;
+    if (!confirm('Adakah anda pasti ingin memadam penugasan guru bagi subjek ini?')) return;
+
+    try {
+      const res = await fetch(`/api/classes/${selectedClass.id}/assignments/${assignmentId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memadam penugasan');
+
+      setFeedbackMessage({ type: 'success', text: data.message });
       fetchData();
     } catch (err: any) {
       setFeedbackMessage({ type: 'error', text: err.message });
@@ -294,12 +320,12 @@ export const ClassManagement: React.FC<{ onNavigate?: (tab: string) => void }> =
           <div className="bg-black/25 backdrop-blur-xs rounded-xl p-3 sm:p-4 border border-amber-300/20">
             <div className="flex items-center gap-2 text-amber-200 text-xs font-medium">
               <UserCheck className="w-4 h-4 text-cyan-400" />
-              <span>Status Penugasan Guru</span>
+              <span>Guru Berdaftar</span>
             </div>
             <div className="text-xl sm:text-2xl font-black mt-1 text-cyan-300">
-              Lengkap
+              {teachers.length} Guru
             </div>
-            <div className="text-[11px] text-cyan-200/80 mt-1">6 Mata Pelajaran Utama</div>
+            <div className="text-[11px] text-cyan-200/80 mt-1">Sedia Ditugaskan</div>
           </div>
         </div>
       </div>
@@ -442,12 +468,19 @@ export const ClassManagement: React.FC<{ onNavigate?: (tab: string) => void }> =
                       <BookOpen className="w-3.5 h-3.5 text-[#7D121D]" />
                       Penugasan Guru Mata Pelajaran:
                     </span>
-                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded">
-                      {cls.assignments.length} Subjek
-                    </span>
+                    <button
+                      onClick={() => {
+                        setSelectedClass(cls);
+                        setIsAssignModalOpen(true);
+                      }}
+                      className="text-[11px] font-bold text-[#7D121D] hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      <span>Urus / Kemaskini</span>
+                    </button>
                   </div>
 
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                     {cls.assignments.length === 0 ? (
                       <div className="text-[11px] text-slate-400 italic py-2 text-center bg-slate-50 rounded-lg">
                         Belum ada guru mata pelajaran ditugaskan.
@@ -462,13 +495,26 @@ export const ClassManagement: React.FC<{ onNavigate?: (tab: string) => void }> =
                             <span className="font-mono text-[10px] font-bold bg-[#7D121D] text-white px-1.5 py-0.5 rounded">
                               {asg.subjectCode}
                             </span>
-                            <span className="font-semibold text-slate-800 truncate max-w-[130px]">
+                            <span className="font-semibold text-slate-800 truncate max-w-[120px]">
                               {asg.subjectName}
                             </span>
                           </div>
-                          <span className="text-[11px] text-slate-600 font-medium truncate max-w-[120px]" title={asg.teacherName}>
-                            {asg.teacherName}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-slate-700 font-bold truncate max-w-[130px]" title={asg.teacherName}>
+                              {asg.teacherName}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setSelectedClass(cls);
+                                setAssignForm({ subjectId: asg.subjectId, teacherId: asg.teacherId });
+                                setIsAssignModalOpen(true);
+                              }}
+                              className="text-slate-400 hover:text-[#7D121D] p-0.5 cursor-pointer"
+                              title="Tukar Guru bagi subjek ini"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}
@@ -483,10 +529,10 @@ export const ClassManagement: React.FC<{ onNavigate?: (tab: string) => void }> =
                     setSelectedClass(cls);
                     setIsAssignModalOpen(true);
                   }}
-                  className="text-xs font-bold text-[#7D121D] hover:bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 transition flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold bg-[#7D121D] hover:bg-[#580B12] text-white px-3 py-1.5 rounded-lg shadow-2xs transition flex items-center gap-1 cursor-pointer"
                 >
                   <UserCheck className="w-3.5 h-3.5" />
-                  <span>Tugaskan Guru</span>
+                  <span>Tugaskan / Kemaskini Guru</span>
                 </button>
 
                 <button
@@ -658,75 +704,145 @@ export const ClassManagement: React.FC<{ onNavigate?: (tab: string) => void }> =
         </div>
       )}
 
-      {/* MODAL: TUGASKAN GURU & SUBJEK */}
+      {/* MODAL: PENGURUSAN & KEMASKINI PENUGASAN GURU */}
       {isAssignModalOpen && selectedClass && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-lg w-full border border-amber-300 shadow-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-[#580B12] to-[#7D121D] text-white p-4 flex items-center justify-between">
-              <h3 className="font-black text-sm sm:text-base flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-amber-400" />
-                Penugasan Guru: {selectedClass.name}
-              </h3>
-              <button onClick={() => setIsAssignModalOpen(false)} className="text-white/80 hover:text-white cursor-pointer">
-                <X className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-2xl w-full border border-amber-300 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-[#580B12] to-[#7D121D] text-white p-4 flex items-center justify-between shrink-0">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-black/30 px-2 py-0.5 rounded-full border border-amber-400/30">
+                  Tahun {selectedClass.gradeLevel} • {selectedClass.year}
+                </span>
+                <h3 className="font-black text-sm sm:text-base mt-1 flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-amber-400" />
+                  Pengurusan &amp; Kemaskini Penugasan Guru: {selectedClass.name}
+                </h3>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsAssignModalOpen(false);
+                  setSelectedClass(null);
+                }} 
+                className="text-white/80 hover:text-white cursor-pointer p-1"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAssignTeacher} className="p-5 space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Pilih Mata Pelajaran *</label>
-                <select
-                  required
-                  value={assignForm.subjectId}
-                  onChange={e => setAssignForm({ ...assignForm, subjectId: e.target.value })}
-                  className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#7D121D] outline-none font-semibold text-slate-800"
-                >
-                  <option value="">-- Pilih Mata Pelajaran --</option>
-                  {subjects.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.code} - {s.name}
-                    </option>
-                  ))}
-                </select>
+            {/* Modal Body */}
+            <div className="p-5 space-y-5 overflow-y-auto flex-1 text-xs">
+              {/* Notice */}
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-slate-700 leading-relaxed flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  Pilih atau kemaskini guru mata pelajaran bagi setiap subjek di bawah untuk kelas <strong>{selectedClass.name}</strong>. Guru yang ditugaskan akan memperoleh hak akses memasukkan dan mengemaskini skor mentah murid.
+                </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Pilih Guru Bertanggungjawab *</label>
-                <select
-                  required
-                  value={assignForm.teacherId}
-                  onChange={e => setAssignForm({ ...assignForm, teacherId: e.target.value })}
-                  className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#7D121D] outline-none font-semibold text-slate-800"
-                >
-                  <option value="">-- Pilih Guru --</option>
-                  {teachers.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.role})
-                    </option>
-                  ))}
-                </select>
+              {/* Table of all official subjects with interactive assignment/reassignment */}
+              <div className="border border-amber-200 rounded-xl overflow-hidden shadow-2xs">
+                <div className="bg-amber-100/60 px-3 py-2 border-b border-amber-200 font-extrabold text-slate-800 flex items-center justify-between">
+                  <span>Senarai Mata Pelajaran &amp; Guru Bertanggungjawab</span>
+                  <span className="text-[11px] font-bold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md">
+                    {subjects.length} Subjek Rasmi
+                  </span>
+                </div>
+
+                <div className="divide-y divide-slate-100 bg-white">
+                  {subjects.map((sub) => {
+                    const currentAssignment = selectedClass.assignments.find(a => a.subjectId === sub.id || a.subjectCode === sub.code);
+                    
+                    return (
+                      <div key={sub.id} className="p-3 flex flex-wrap items-center justify-between gap-3 hover:bg-amber-50/30 transition">
+                        {/* Subject info */}
+                        <div className="flex items-center gap-2 min-w-[160px]">
+                          <span className="font-mono text-xs font-black bg-[#7D121D] text-white px-2 py-0.5 rounded shadow-2xs">
+                            {sub.code}
+                          </span>
+                          <div>
+                            <div className="font-bold text-slate-900 text-xs">{sub.name}</div>
+                            <div className="text-[10px] text-slate-400">Skor Max: 100</div>
+                          </div>
+                        </div>
+
+                        {/* Interactive Teacher Selector & Update */}
+                        <div className="flex items-center gap-2 flex-1 max-w-sm justify-end">
+                          <select
+                            defaultValue={currentAssignment?.teacherId || ''}
+                            onChange={(e) => {
+                              const newTeacherId = e.target.value;
+                              if (newTeacherId) {
+                                handleAssignTeacher(sub.id, newTeacherId);
+                              }
+                            }}
+                            className={`p-2 border rounded-xl text-xs font-semibold outline-none transition w-full max-w-[240px] cursor-pointer ${
+                              currentAssignment 
+                                ? 'bg-emerald-50/50 border-emerald-300 text-emerald-950 font-bold focus:ring-2 focus:ring-emerald-500' 
+                                : 'bg-slate-50 border-slate-300 text-slate-500 focus:ring-2 focus:ring-[#7D121D]'
+                            }`}
+                          >
+                            <option value="">-- Pilih Guru Bertanggungjawab --</option>
+                            {teachers.map(t => (
+                              <option key={t.id} value={t.id}>
+                                {t.name} ({t.role})
+                              </option>
+                            ))}
+                          </select>
+
+                          {currentAssignment && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAssignment(currentAssignment.id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                              title="Padam / Batalkan Penugasan"
+                            >
+                              <UserX className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-slate-700 text-[11px] leading-relaxed">
-                💡 Guru yang ditugaskan akan mempunyai akses untuk memasukkan skor mentah bagi kelas <strong>{selectedClass.name}</strong> untuk mata pelajaran yang dipilih.
+              {/* Quick Summary of Current Active Teachers in this Class */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <span className="font-extrabold text-slate-700 block mb-2 text-xs">
+                  Ringkasan Penugasan Semasa:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {selectedClass.assignments.length === 0 ? (
+                    <span className="text-slate-400 italic text-[11px]">Tiada penugasan guru lagi.</span>
+                  ) : (
+                    selectedClass.assignments.map(a => (
+                      <span key={a.id} className="inline-flex items-center gap-1.5 bg-white border border-amber-300 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-800 shadow-2xs">
+                        <span className="font-mono text-[10px] bg-[#7D121D] text-white px-1.5 py-0.2 rounded font-black">{a.subjectCode}</span>
+                        <span>{a.teacherName}</span>
+                      </span>
+                    ))
+                  )}
+                </div>
               </div>
+            </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAssignModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-[#7D121D] hover:bg-[#580B12] text-white rounded-xl font-black shadow-xs cursor-pointer"
-                >
-                  Sahkan Penugasan
-                </button>
-              </div>
-            </form>
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
+              <span className="text-[11px] font-semibold text-slate-500">
+                Perubahan penugasan disimpan secara automatik ke jejak audit sistem.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAssignModalOpen(false);
+                  setSelectedClass(null);
+                }}
+                className="px-5 py-2 bg-[#7D121D] hover:bg-[#580B12] text-white rounded-xl font-black text-xs shadow-xs cursor-pointer"
+              >
+                Selesai &amp; Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}

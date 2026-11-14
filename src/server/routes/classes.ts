@@ -58,6 +58,7 @@ router.get('/', async (req, res) => {
           teacherId: a.user.id,
           teacherName: a.user.name,
           teacherEmail: a.user.email,
+          teacherRole: a.user.role,
           subjectId: a.subject.id,
           subjectCode: a.subject.code,
           subjectName: a.subject.name,
@@ -209,14 +210,14 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// POST assign teacher to subject in class
+// POST assign or update teacher for subject in class
 router.post('/:id/assignments', async (req, res) => {
   try {
     const { id: classId } = req.params;
     const { userId, subjectId } = req.body;
 
     if (!userId || !subjectId) {
-      return res.status(400).json({ error: 'userId dan subjectId diperlukan' });
+      return res.status(400).json({ error: 'Sila pilih subjek dan guru yang sah' });
     }
 
     const cls = await prisma.class.findUnique({ where: { id: classId } });
@@ -227,44 +228,100 @@ router.post('/:id/assignments', async (req, res) => {
       return res.status(404).json({ error: 'Kelas, guru atau subjek tidak sah' });
     }
 
-    // Upsert assignment
-    const assignment = await prisma.teacherAssignment.upsert({
-      where: {
-        userId_classId_subjectId: {
+    // Check if an existing assignment already exists for this class and subject
+    const existing = await prisma.teacherAssignment.findFirst({
+      where: { classId, subjectId },
+      include: { user: true },
+    });
+
+    let assignment;
+    let action = 'TEACHER_ASSIGN';
+    let previousTeacher = null;
+
+    if (existing) {
+      previousTeacher = existing.user.name;
+      // Delete old assignment to avoid unique constraint conflict, then create new
+      await prisma.teacherAssignment.delete({ where: { id: existing.id } });
+      assignment = await prisma.teacherAssignment.create({
+        data: {
           userId,
           classId,
           subjectId,
         },
-      },
-      update: {},
-      create: {
-        userId,
-        classId,
-        subjectId,
-      },
-    });
+      });
+      action = 'TEACHER_REASSIGN';
+    } else {
+      assignment = await prisma.teacherAssignment.create({
+        data: {
+          userId,
+          classId,
+          subjectId,
+        },
+      });
+    }
 
     // Write audit log
     await prisma.auditLog.create({
       data: {
         userName: 'Puan Maimunah Binti Tajuddin',
         userRole: 'SUPER_ADMIN',
-        action: 'TEACHER_ASSIGN',
+        action,
         entityType: 'ASSIGNMENT',
         entityId: assignment.id,
         details: JSON.stringify({
-          teacherName: user.name,
           className: cls.name,
           subjectCode: subject.code,
           subjectName: subject.name,
+          newTeacher: user.name,
+          previousTeacher,
         }),
       },
     });
 
     res.json({
-      message: `Penugasan ${user.name} bagi ${subject.name} di ${cls.name} berjaya disimpan`,
+      message: previousTeacher 
+        ? `Guru bagi ${subject.name} berjaya dikemaskini daripada ${previousTeacher} kepada ${user.name}`
+        : `Penugasan ${user.name} bagi ${subject.name} di ${cls.name} berjaya disimpan`,
       assignment,
     });
+  } catch (error: any) {
+    console.error('Error assigning teacher:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE assignment for subject in class
+router.delete('/:classId/assignments/:assignmentId', async (req, res) => {
+  try {
+    const { classId, assignmentId } = req.params;
+
+    const assignment = await prisma.teacherAssignment.findUnique({
+      where: { id: assignmentId },
+      include: { user: true, subject: true, class: true },
+    });
+
+    if (!assignment) {
+      return res.status(404).json({ error: 'Rekod penugasan tidak dijumpai' });
+    }
+
+    await prisma.teacherAssignment.delete({ where: { id: assignmentId } });
+
+    await prisma.auditLog.create({
+      data: {
+        userName: 'Puan Maimunah Binti Tajuddin',
+        userRole: 'SUPER_ADMIN',
+        action: 'TEACHER_ASSIGN_DELETE',
+        entityType: 'ASSIGNMENT',
+        entityId: assignmentId,
+        details: JSON.stringify({
+          className: assignment.class.name,
+          subjectName: assignment.subject.name,
+          teacherName: assignment.user.name,
+        }),
+      },
+    });
+
+    res.json({ message: `Penugasan ${assignment.user.name} bagi ${assignment.subject.name} telah dipadam` });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
