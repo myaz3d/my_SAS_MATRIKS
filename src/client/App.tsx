@@ -8,6 +8,7 @@ import { OfficerDashboard } from './components/OfficerDashboard';
 import { ScoreEntryGrid } from './components/ScoreEntryGrid';
 import { ModerationView } from './components/ModerationView';
 import { RosterManagement } from './components/RosterManagement';
+import { ClassManagement } from './components/ClassManagement';
 import { SBPPAExportPackage } from './components/SBPPAExportPackage';
 import { AuditLogView } from './components/AuditLogView';
 import { OfficialIntegrationSettings } from './components/OfficialIntegrationSettings';
@@ -25,11 +26,11 @@ const MainContent: React.FC = () => {
 
   // RBAC Access Control Guard
   const roleAllowedTabs: Record<string, string[]> = {
-    SUPER_ADMIN: ['dashboard-student', 'dashboard-officer', 'dashboard', 'scores', 'moderation', 'roster', 'users', 'deliverables', 'audit', 'integration'],
-    COORDINATOR: ['dashboard-student', 'dashboard-officer', 'dashboard', 'scores', 'moderation', 'roster', 'users', 'deliverables', 'audit'],
+    SUPER_ADMIN: ['dashboard-student', 'dashboard-officer', 'dashboard', 'scores', 'moderation', 'roster', 'classes', 'users', 'deliverables', 'audit', 'integration'],
+    COORDINATOR: ['dashboard-student', 'dashboard-officer', 'dashboard', 'scores', 'moderation', 'roster', 'classes', 'users', 'deliverables', 'audit'],
     KPMP: ['dashboard-student', 'dashboard-officer', 'dashboard', 'scores', 'moderation', 'deliverables'],
     TEACHER: ['dashboard-student', 'dashboard-officer', 'dashboard', 'scores', 'roster'],
-    DATA_OFFICER: ['dashboard-student', 'dashboard-officer', 'dashboard', 'roster', 'deliverables'],
+    DATA_OFFICER: ['dashboard-student', 'dashboard-officer', 'dashboard', 'roster', 'classes', 'deliverables'],
     LEADER: ['dashboard-student', 'dashboard-officer', 'dashboard', 'moderation', 'deliverables', 'audit'],
   };
 
@@ -55,6 +56,7 @@ const MainContent: React.FC = () => {
         {effectiveTab === 'scores' && <ScoreEntryGrid />}
         {effectiveTab === 'moderation' && <ModerationView />}
         {effectiveTab === 'roster' && <RosterManagement />}
+        {effectiveTab === 'classes' && <ClassManagement onNavigate={(tab) => setActiveTab(tab)} />}
         {effectiveTab === 'users' && <UserManagement />}
         {effectiveTab === 'deliverables' && <SBPPAExportPackage onNavigate={(tab) => setActiveTab(tab)} />}
         {effectiveTab === 'audit' && <AuditLogView />}

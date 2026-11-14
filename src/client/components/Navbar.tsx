@@ -60,6 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
     { id: 'scores', label: t('Kemasukan Markah', 'Score Entry'), icon: FileSpreadsheet, roles: ['SUPER_ADMIN', 'COORDINATOR', 'TEACHER', 'KPMP'] },
     { id: 'moderation', label: t('Semakan & Moderasi', 'Moderation'), icon: FileCheck, roles: ['SUPER_ADMIN', 'COORDINATOR', 'KPMP', 'LEADER'] },
     { id: 'roster', label: t('Pengurusan Murid', 'Student Roster'), icon: Users, roles: ['SUPER_ADMIN', 'COORDINATOR', 'DATA_OFFICER', 'TEACHER'] },
+    { id: 'classes', label: t('Pengurusan Kelas', 'Class Management'), icon: Building2, roles: ['SUPER_ADMIN', 'COORDINATOR', 'DATA_OFFICER'] },
     { id: 'users', label: t('ID Pengguna', 'User IDs'), icon: UserCheck, roles: ['SUPER_ADMIN', 'COORDINATOR'] },
     { id: 'deliverables', label: t('Pakej SBPPA', 'SBPPA Packages'), icon: FileDown, roles: ['SUPER_ADMIN', 'COORDINATOR', 'DATA_OFFICER', 'LEADER'] },
     { id: 'audit', label: t('Log Audit', 'Audit Logs'), icon: History, roles: ['SUPER_ADMIN', 'COORDINATOR', 'LEADER'] },

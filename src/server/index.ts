@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import prisma from './db';
 import authRoutes from './routes/auth';
 import rosterRoutes from './routes/roster';
 import cycleRoutes from './routes/cycles';
@@ -9,6 +10,7 @@ import scoreRoutes from './routes/scores';
 import deliverableRoutes from './routes/deliverables';
 import auditRoutes from './routes/audit';
 import systemRoutes from './routes/system';
+import classesRoutes from './routes/classes';
 
 export function createApp() {
   const app = express();
@@ -20,6 +22,7 @@ export function createApp() {
   // API Routes
   app.use('/api/auth', authRoutes);
   app.use('/api/roster', rosterRoutes);
+  app.use('/api/classes', classesRoutes);
   app.use('/api/cycles', cycleRoutes);
   app.use('/api/scores', scoreRoutes);
   app.use('/api/deliverables', deliverableRoutes);
