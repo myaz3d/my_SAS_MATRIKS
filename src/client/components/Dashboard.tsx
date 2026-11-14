@@ -422,20 +422,10 @@ export const Dashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({ onN
                       <div className="text-[11px] text-slate-600 mt-0.5 max-w-xs leading-snug">{task.description}</div>
                     </td>
                     <td className="py-3 px-3">
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
-                        task.status === 'OVERDUE'
-                          ? 'bg-rose-100 text-rose-900 border-rose-300 animate-pulse'
-                          : task.status === 'PENDING'
-                          ? 'bg-amber-100 text-amber-900 border-amber-300'
-                          : 'bg-slate-100 text-slate-700 border-slate-300'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${task.status === 'OVERDUE' ? 'bg-rose-600' : 'bg-amber-600'}`}></span>
-                        {task.statusLabel}
+                      <span className="text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-1 rounded-full inline-flex items-center gap-1 shadow-2xs">
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                        BELUM SELESAI
                       </span>
-                      <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                        <span>Sasaran:</span>
-                        <span className="font-semibold text-slate-600">{task.deadline}</span>
-                      </div>
                     </td>
                     <td className="py-3 px-3 text-right">
                       <button

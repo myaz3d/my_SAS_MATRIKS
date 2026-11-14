@@ -473,20 +473,14 @@ export const OfficerDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
                       <div className="text-[11px] text-slate-600 mt-0.5 leading-tight">{task.description}</div>
                     </td>
                     <td className="py-3 px-3">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3 text-rose-600" />
-                          {task.statusBadge}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-slate-400" />
-                        Sasaran: <span className="font-semibold text-slate-600">{task.dueDate}</span>
-                      </div>
+                      <span className="text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-1 rounded-full inline-flex items-center gap-1 shadow-2xs">
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                        BELUM SELESAI
+                      </span>
                     </td>
                     <td className="py-3 px-3 text-right">
                       <button
-                        onClick={() => onNavigate(task.actionUrl)}
+                        onClick={() => onNavigate(task.targetTab || task.actionUrl || 'scores')}
                         className="bg-[#7D121D] hover:bg-[#580B12] text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl transition cursor-pointer shadow-xs inline-flex items-center gap-1"
                         title={`Buka modul ${task.actionLabel}`}
                       >
