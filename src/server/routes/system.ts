@@ -211,7 +211,7 @@ router.get('/pending-workflow-users', async (req, res) => {
     // 3. Check Coordinator (Validation / Pre-moderation checks)
     const coordinator = users.find(u => u.role === 'COORDINATOR');
     const submittedCount = records.filter(r => r.status === 'SUBMITTED').length;
-    if (coordinator) {
+    if (coordinator && submittedCount > 0) {
       pendingTasks.push({
         id: `task-coord-${coordinator.id}`,
         userId: coordinator.id,
@@ -222,12 +222,12 @@ router.get('/pending-workflow-users', async (req, res) => {
         taskType: 'Penentusahan & Semakan Format Pra-Moderasi',
         scope: 'Tahun 4 • Kitaran Semasa',
         className: 'Semua Kelas',
-        affectedCount: submittedCount > 0 ? submittedCount : 30,
-        status: submittedCount > 0 ? 'PENDING' : 'WAITING',
-        statusLabel: submittedCount > 0 ? `${submittedCount} Rekod Menunggu Semakan` : 'Semakan Kelayakan Berkala',
-        urgency: submittedCount > 0 ? 'HIGH' : 'MEDIUM',
+        affectedCount: submittedCount,
+        status: 'PENDING',
+        statusLabel: `${submittedCount} Rekod Menunggu Semakan`,
+        urgency: 'HIGH',
         deadline: 'Sebelum 23/11/2026',
-        description: 'Penyelaras perlu mengesahkan kelengkapan format skor murid yang telah dihantar oleh guru sebelum diserahkan kepada Ketua Panitia.',
+        description: `Terdapat ${submittedCount} rekod pentaksiran yang telah dihantar oleh guru dan memerlukan semakan format serta penentusahan Penyelaras sebelum diserahkan kepada Ketua Panitia.`,
         targetTab: 'moderation',
         actionLabel: 'Semak Rekod Dihantar',
       });
@@ -244,56 +244,32 @@ router.get('/pending-workflow-users', async (req, res) => {
     const readyForAdminApproval = records.filter(r => r.status === 'VALIDATED' || r.status === 'MODERATED').length;
     const draftCount = records.filter(r => r.status === 'DRAFT').length;
 
-    if (superAdmin) {
-      if (readyForAdminApproval > 0) {
-        // Records that are actively awaiting admin approval
-        pendingTasks.push({
-          id: `task-admin-${superAdmin.id}`,
-          userId: superAdmin.id,
-          userName: superAdmin.name,
-          userEmail: superAdmin.email,
-          userRole: superAdmin.role,
-          roleTitle: 'Pentadbir Utama Sistem',
-          taskType: 'Kelulusan Rasmi Pentadbir Sekolah',
-          scope: 'Tahun 4 • Semua Mata Pelajaran',
-          className: 'Semua Kelas',
-          affectedCount: readyForAdminApproval,
-          status: 'PENDING',
-          statusLabel: `${readyForAdminApproval} Rekod Menunggu Kelulusan`,
-          urgency: 'HIGH',
-          deadline: 'Sebelum 25/11/2026',
-          description: `Terdapat ${readyForAdminApproval} rekod pentaksiran yang telah disemak dan kini sedia untuk kelulusan rasmi pentadbir sekolah.`,
-          targetTab: 'moderation',
-          actionLabel: 'Sahkan Kelulusan Rasmi',
-        });
-      } else if (pendingApprovalCount > 0 && draftCount > 0) {
-        // Admin has approved all submitted records. Remaining records are still in draft by teachers.
-        pendingTasks.push({
-          id: `task-admin-${superAdmin.id}`,
-          userId: superAdmin.id,
-          userName: superAdmin.name,
-          userEmail: superAdmin.email,
-          userRole: superAdmin.role,
-          roleTitle: 'Pentadbir Utama Sistem',
-          taskType: 'Kelulusan Rasmi Pentadbir Sekolah',
-          scope: 'Tahun 4 • Semua Mata Pelajaran',
-          className: 'Semua Kelas',
-          affectedCount: draftCount,
-          status: 'WAITING',
-          statusLabel: `Menunggu Penyerahan Guru (${draftCount} Draf)`,
-          urgency: 'MEDIUM',
-          deadline: 'Sebelum 25/11/2026',
-          description: `Semua rekod yang dihantar telah diluluskan (${approvedCount}/${totalRecordsCount} Rekod). Menunggu guru melengkapkan skor draf sebelum kelulusan akhir.`,
-          targetTab: 'moderation',
-          actionLabel: 'Semak Status Sekolah',
-        });
-      }
-      // If pendingApprovalCount === 0 (100% approved), no pending task for admin
+    if (superAdmin && readyForAdminApproval > 0) {
+      // Records that are actively awaiting admin approval
+      pendingTasks.push({
+        id: `task-admin-${superAdmin.id}`,
+        userId: superAdmin.id,
+        userName: superAdmin.name,
+        userEmail: superAdmin.email,
+        userRole: superAdmin.role,
+        roleTitle: 'Pentadbir Utama Sistem',
+        taskType: 'Kelulusan Rasmi Pentadbir Sekolah',
+        scope: 'Tahun 4 • Semua Mata Pelajaran',
+        className: 'Semua Kelas',
+        affectedCount: readyForAdminApproval,
+        status: 'PENDING',
+        statusLabel: `${readyForAdminApproval} Rekod Menunggu Kelulusan`,
+        urgency: 'HIGH',
+        deadline: 'Sebelum 25/11/2026',
+        description: `Terdapat ${readyForAdminApproval} rekod pentaksiran yang telah disemak dan kini sedia untuk kelulusan rasmi pentadbir sekolah.`,
+        targetTab: 'moderation',
+        actionLabel: 'Sahkan Kelulusan Rasmi',
+      });
     }
 
     // 5. Check Data Officer (Export SBPPA Package)
     const dataOfficer = users.find(u => u.role === 'DATA_OFFICER');
-    if (dataOfficer) {
+    if (dataOfficer && approvedCount === totalRecordsCount && totalRecordsCount > 0) {
       pendingTasks.push({
         id: `task-data-${dataOfficer.id}`,
         userId: dataOfficer.id,
@@ -304,12 +280,12 @@ router.get('/pending-workflow-users', async (req, res) => {
         taskType: 'Penjanaan Pakej SBPPA untuk Kemasukan Rasmi',
         scope: 'Tahun 4 • Kitaran 1 SAS',
         className: 'Semua Kelas',
-        affectedCount: records.length,
-        status: 'WAITING',
-        statusLabel: 'Menunggu Kelulusan Selesai',
-        urgency: 'MEDIUM',
+        affectedCount: totalRecordsCount,
+        status: 'PENDING',
+        statusLabel: 'Sedia Dijana (100% Diluluskan)',
+        urgency: 'HIGH',
         deadline: 'Sebelum 28/11/2026',
-        description: 'Menjana pakej penyediaan XLSX/CSV SBPPA berkanun untuk muat naik atau kemasukan rasmi ke portal KPM.',
+        description: `Semua ${totalRecordsCount} rekod pentaksiran telah diluluskan secara rasmi oleh pentadbir sekolah. Pegawai Data kini boleh memuat turun dan menjana Pakej SBPPA untuk kemasukan portal KPM.`,
         targetTab: 'deliverables',
         actionLabel: 'Pakej SBPPA',
       });
