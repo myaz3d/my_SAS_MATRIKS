@@ -8,10 +8,12 @@ import {
   CheckCircle2, 
   FileSpreadsheet,
   Building,
-  UserPlus
+  UserPlus,
+  ChevronRight
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import * as XLSX from 'xlsx';
+import { StudentDetailModal } from './StudentDetailModal';
 
 export const RosterManagement: React.FC = () => {
   const { currentUser, t, maskPII } = useApp();
@@ -21,6 +23,7 @@ export const RosterManagement: React.FC = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   // Import modal state
   const [importModal, setImportModal] = useState<boolean>(false);
@@ -240,7 +243,16 @@ export const RosterManagement: React.FC = () => {
                     <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{i + 1}</td>
                     <td className="py-2.5 px-3 font-mono font-medium text-slate-700">{st.studentId}</td>
                     <td className="py-2.5 px-3 font-mono text-slate-600">{maskMyKid(st.mykid)}</td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-900">{st.fullName}</td>
+                    <td className="py-2.5 px-3">
+                      <button
+                        onClick={() => setSelectedStudentId(st.id)}
+                        className="text-left font-bold text-[#7D121D] hover:text-[#580B12] hover:underline transition cursor-pointer inline-flex items-center gap-1 group"
+                        title={t('Klik untuk lihat maklumat murid dan markah penuh', 'Click to view student details and marks')}
+                      >
+                        <span>{st.fullName}</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-amber-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition shrink-0" />
+                      </button>
+                    </td>
                     <td className="py-2.5 px-3 text-center">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                         st.gender === 'L' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700'
@@ -345,6 +357,12 @@ export const RosterManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Student Profile & Score Detail Modal */}
+      <StudentDetailModal
+        studentId={selectedStudentId}
+        onClose={() => setSelectedStudentId(null)}
+      />
     </div>
   );
 };

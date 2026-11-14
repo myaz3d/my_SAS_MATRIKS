@@ -18,6 +18,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { StudentDetailModal } from './StudentDetailModal';
 
 interface StudentDashboardStats {
   totalStudents: number;
@@ -43,6 +44,7 @@ export const StudentDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
   const [interventionList, setInterventionList] = useState<any[]>([]);
   const [studentSearch, setStudentSearch] = useState<string>('');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('ALL');
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeCycle) return;
@@ -470,8 +472,15 @@ export const StudentDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
               ) : (
                 filteredInterventions.map((st, idx) => (
                   <tr key={idx} className="hover:bg-rose-50/40 transition">
-                    <td className="py-2.5 px-3 font-bold text-slate-900">
-                      {st.name}
+                    <td className="py-2.5 px-3">
+                      <button
+                        onClick={() => setSelectedStudentId(st.studentId || st.id)}
+                        className="text-left font-bold text-[#7D121D] hover:text-[#580B12] hover:underline transition cursor-pointer flex items-center gap-1 group"
+                        title="Klik untuk lihat profil murid dan markah penuh"
+                      >
+                        <span>{st.name}</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-amber-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition shrink-0" />
+                      </button>
                       {st.mykid && (
                         <div className="text-[10px] text-slate-400 font-mono">
                           {maskPII ? '******-**-****' : st.mykid}
@@ -498,6 +507,12 @@ export const StudentDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
           </table>
         </div>
       </div>
+
+      {/* Student Profile & Full Score Detail Modal */}
+      <StudentDetailModal
+        studentId={selectedStudentId}
+        onClose={() => setSelectedStudentId(null)}
+      />
     </div>
   );
 };

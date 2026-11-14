@@ -55,6 +55,119 @@ router.get('/students', async (req, res) => {
   }
 });
 
+// Get individual student details and full score report
+router.get('/students/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { cycleId } = req.query;
+
+    let student = await prisma.student.findUnique({
+      where: { id },
+      include: {
+        class: true,
+      },
+    });
+
+    if (!student) {
+      student = await prisma.student.findFirst({
+        where: {
+          OR: [
+            { studentId: id },
+            { mykid: id },
+          ],
+        },
+        include: {
+          class: true,
+        },
+      });
+    }
+
+    if (!student) {
+      return res.status(404).json({ error: 'Murid tidak ditemui' });
+    }
+
+    const allSubjects = await prisma.subject.findMany({
+      orderBy: { code: 'asc' },
+    });
+
+    const scoreWhere: any = { studentId: student.id };
+    if (cycleId && typeof cycleId === 'string' && cycleId !== 'ALL') {
+      scoreWhere.cycleId = cycleId;
+    }
+
+    const scoreRecords = await prisma.scoreRecord.findMany({
+      where: scoreWhere,
+      include: {
+        subject: true,
+        cycle: true,
+        moderations: {
+          include: {
+            moderator: {
+              select: { name: true, role: true },
+            },
+          },
+          orderBy: { moderatedAt: 'desc' },
+        },
+      },
+      orderBy: { subject: { code: 'asc' } },
+    });
+
+    const subjectScores = allSubjects.map(sub => {
+      const record = scoreRecords.find(r => r.subjectId === sub.id);
+      return {
+        subjectId: sub.id,
+        code: sub.code,
+        name: sub.name,
+        targetLevel: sub.targetLevel,
+        hasRecord: !!record,
+        recordId: record?.id || null,
+        rawScore: record?.rawScore ?? null,
+        masteryLevel: record?.masteryLevel ?? null,
+        status: record?.status || 'NOT_ENTERED',
+        isSampled: record?.isSampled || false,
+        correctionReason: record?.correctionReason || null,
+        cycleId: record?.cycleId || null,
+        cycleName: record?.cycle?.name || null,
+        submittedAt: record?.submittedAt || null,
+        submittedBy: record?.submittedBy || null,
+        approvedAt: record?.approvedAt || null,
+        approvedBy: record?.approvedBy || null,
+        moderations: record?.moderations || [],
+      };
+    });
+
+    const validScores = subjectScores.filter(s => s.rawScore !== null && s.rawScore !== undefined);
+    const averageScore = validScores.length > 0 
+      ? Number((validScores.reduce((acc, curr) => acc + (curr.rawScore || 0), 0) / validScores.length).toFixed(1))
+      : null;
+
+    const tpCounts = {
+      TP1: subjectScores.filter(s => s.masteryLevel === 1).length,
+      TP2: subjectScores.filter(s => s.masteryLevel === 2).length,
+      TP3: subjectScores.filter(s => s.masteryLevel === 3).length,
+      TP4: subjectScores.filter(s => s.masteryLevel === 4).length,
+      TP5: subjectScores.filter(s => s.masteryLevel === 5).length,
+      TP6: subjectScores.filter(s => s.masteryLevel === 6).length,
+    };
+
+    const needsIntervention = validScores.some(s => (s.rawScore !== null && s.rawScore < 40) || (s.masteryLevel !== null && s.masteryLevel <= 2));
+
+    res.json({
+      student,
+      subjectScores,
+      stats: {
+        totalSubjects: allSubjects.length,
+        recordedSubjects: validScores.length,
+        averageScore,
+        tpCounts,
+        needsIntervention,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Sample roster template download (CSV or XLSX)
 router.get('/template', (req, res) => {
   const format = req.query.format === 'xlsx' ? 'xlsx' : 'csv';
