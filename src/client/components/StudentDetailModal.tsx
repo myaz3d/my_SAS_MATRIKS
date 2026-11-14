@@ -158,8 +158,10 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ studentI
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 overflow-y-auto animate-fadeIn">
-      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-amber-300/40 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+    <>
+      {/* Interactive Screen Modal (Hidden when printing) */}
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 overflow-y-auto animate-fadeIn no-print">
+        <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-amber-300/40 overflow-hidden my-auto max-h-[92vh] flex flex-col">
         {/* Header with Royal Maroon & Gold */}
         <div className="bg-gradient-to-r from-[#580B12] via-[#7D121D] to-[#9B1C2A] text-white px-5 sm:px-6 py-4 flex items-center justify-between border-b border-amber-400/30 shrink-0">
           <div className="flex items-center gap-3">
@@ -494,5 +496,190 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ studentI
         </div>
       </div>
     </div>
-  );
+
+    {/* Dedicated 1-Page Official Student Slip for Printing */}
+    {data && (
+      <div id="printable-student-slip" className="hidden print:block text-slate-900 bg-white font-sans p-2">
+        {/* Official School Kop */}
+        <div className="flex items-center justify-between border-b-2 border-[#7D121D] pb-2 mb-2">
+          <div className="flex items-center gap-3">
+            <img src="/SAS.jpg" alt="Logo SAS" className="w-14 h-14 object-contain shrink-0" />
+            <div>
+              <h1 className="text-sm font-black tracking-tight text-[#7D121D] uppercase leading-tight">
+                Sekolah Agama Suria (SR SABK)
+              </h1>
+              <p className="text-[10px] font-bold text-slate-800">
+                PPD TUARAN, SABAH • KOD SEKOLAH: XCA4301
+              </p>
+              <p className="text-[9px] text-slate-500">
+                Alamat: Peti Surat 123, 89208 Tuaran, Sabah • E-mel: admin@sekolah.edu.my
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="inline-block bg-amber-50 border border-amber-400 px-2 py-0.5 rounded text-[9px] font-black text-amber-950 uppercase tracking-wide">
+              Slip Rasmi SBPPA KPM
+            </div>
+            <div className="text-[9px] text-slate-500 mt-1 font-mono">
+              Tarikh Cetak: {new Date().toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </div>
+          </div>
+        </div>
+
+        {/* Slip Title */}
+        <div className="text-center my-1.5">
+          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900">
+            Slip Keputusan Pentaksiran Matriks Pembelajaran Murid
+          </h2>
+          <p className="text-[10px] text-slate-600 font-semibold">
+            {activeCycle?.name || 'Kitaran 1 - Pertengahan Sesi 2026/2027'} • Tahun {data.student.class?.gradeLevel || 4}
+          </p>
+        </div>
+
+        {/* Student Profile Info Grid */}
+        <div className="border border-slate-300 rounded p-2 mb-2 bg-slate-50/70 text-[10px]">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <div className="flex">
+              <span className="w-28 font-bold text-slate-600">Nama Penuh:</span>
+              <span className="font-black text-slate-900 uppercase">{data.student.fullName}</span>
+            </div>
+            <div className="flex">
+              <span className="w-28 font-bold text-slate-600">Kelas:</span>
+              <span className="font-black text-slate-900">{data.student.class?.name || 'Tahun 4'}</span>
+            </div>
+            <div className="flex">
+              <span className="w-28 font-bold text-slate-600">No. Pendaftaran:</span>
+              <span className="font-mono font-bold text-slate-900">{data.student.studentId}</span>
+            </div>
+            <div className="flex">
+              <span className="w-28 font-bold text-slate-600">Jantina:</span>
+              <span className="font-bold text-slate-800">{data.student.gender === 'L' ? 'Lelaki' : 'Perempuan'}</span>
+            </div>
+            <div className="flex">
+              <span className="w-28 font-bold text-slate-600">No. MyKid:</span>
+              <span className="font-mono font-bold text-slate-900">{formatMyKid(data.student.mykid)}</span>
+            </div>
+            <div className="flex">
+              <span className="w-28 font-bold text-slate-600">Status Enrolmen:</span>
+              <span className="font-bold text-emerald-800">Aktif Berdaftar</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Subject Scores Table */}
+        <div className="mb-2">
+          <table className="w-full text-[10px] border-collapse border border-slate-300">
+            <thead>
+              <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
+                <th className="border border-slate-300 py-1 px-1.5 text-center w-8">BIL</th>
+                <th className="border border-slate-300 py-1 px-1.5 text-center w-12">KOD</th>
+                <th className="border border-slate-300 py-1 px-2 text-left">MATA PELAJARAN</th>
+                <th className="border border-slate-300 py-1 px-2 text-center w-24">SKOR MENTAH</th>
+                <th className="border border-slate-300 py-1 px-2 text-center w-36">TAHAP PENGUASAAN</th>
+                <th className="border border-slate-300 py-1 px-2 text-left">CATATAN / MODERASI</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.subjectScores.map((sub, index) => {
+                const tp = getTPBadge(sub.masteryLevel);
+                return (
+                  <tr key={sub.subjectId} className="border-b border-slate-200">
+                    <td className="border border-slate-300 py-1 px-1.5 text-center font-mono text-[9px]">{index + 1}</td>
+                    <td className="border border-slate-300 py-1 px-1.5 text-center font-mono font-bold">{sub.code}</td>
+                    <td className="border border-slate-300 py-1 px-2 font-bold text-slate-900">
+                      {sub.name}
+                      {sub.submittedBy && <span className="block text-[8px] font-normal text-slate-500">Guru: {sub.submittedBy}</span>}
+                    </td>
+                    <td className="border border-slate-300 py-1 px-2 text-center font-bold">
+                      {sub.rawScore !== null ? (
+                        <span className={sub.rawScore < 40 ? 'text-rose-600' : 'text-slate-900'}>
+                          {sub.rawScore} / 100
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic text-[9px]">Belum Diisi</span>
+                      )}
+                    </td>
+                    <td className="border border-slate-300 py-1 px-2 text-center">
+                      <span className="font-extrabold text-[9px] inline-block px-1.5 py-0.5 rounded border border-slate-300 bg-slate-50">
+                        {tp.label}
+                      </span>
+                    </td>
+                    <td className="border border-slate-300 py-1 px-2 text-[9px]">
+                      {sub.isSampled ? 'Sampel Rawak KPMP Disahkan' : sub.hasRecord ? 'Rekod Lengkap Draf/Disemak' : 'Belum Ditaksir'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Performance Summary Cards (Compact 1-row) */}
+        <div className="grid grid-cols-4 gap-1.5 mb-2 text-center text-[10px]">
+          <div className="border border-slate-300 rounded p-1 bg-slate-50">
+            <div className="text-[8px] font-bold text-slate-500 uppercase">Purata Skor</div>
+            <div className="text-xs font-black text-[#7D121D]">
+              {data.stats.averageScore !== null ? `${data.stats.averageScore}%` : '—'}
+            </div>
+          </div>
+          <div className="border border-slate-300 rounded p-1 bg-slate-50">
+            <div className="text-[8px] font-bold text-slate-500 uppercase">Tahap Capaian</div>
+            <div className="text-xs font-black text-slate-900">
+              {data.stats.averageScore !== null ? (
+                data.stats.averageScore >= 85 ? 'TP6 (Cemerlang)' :
+                data.stats.averageScore >= 70 ? 'TP5 (Sangat Baik)' :
+                data.stats.averageScore >= 55 ? 'TP4 (Baik)' :
+                data.stats.averageScore >= 40 ? 'TP3 (Memuaskan)' :
+                data.stats.averageScore >= 20 ? 'TP2 (Bimbingan)' : 'TP1'
+              ) : '—'}
+            </div>
+          </div>
+          <div className="border border-slate-300 rounded p-1 bg-slate-50">
+            <div className="text-[8px] font-bold text-slate-500 uppercase">Tahap Min KPM</div>
+            <div className="text-xs font-black text-slate-900">
+              {data.stats.tpCounts.TP3 + data.stats.tpCounts.TP4 + data.stats.tpCounts.TP5 + data.stats.tpCounts.TP6} / {data.stats.recordedSubjects} Subjek
+            </div>
+          </div>
+          <div className={`border rounded p-1 ${data.stats.needsIntervention ? 'border-rose-400 bg-rose-50 text-rose-800' : 'border-emerald-400 bg-emerald-50 text-emerald-800'}`}>
+            <div className="text-[8px] font-bold uppercase">Status Intervensi</div>
+            <div className="text-xs font-black">
+              {data.stats.needsIntervention ? 'Perlu Bimbingan' : 'Memuaskan'}
+            </div>
+          </div>
+        </div>
+
+        {/* Scale Reference */}
+        <div className="border border-slate-200 rounded p-1 mb-3 text-[8px] text-slate-600 bg-slate-50/50">
+          <strong className="text-slate-800">Skala TP KPM: </strong>
+          TP1 (0-19: Bimbingan Rapi) • TP2 (20-39: Perlu Bimbingan) • TP3 (40-54: Memuaskan - Tahap Min KPM) • TP4 (55-69: Baik) • TP5 (70-84: Sangat Baik) • TP6 (85-100: Cemerlang)
+        </div>
+
+        {/* Signatures Box */}
+        <div className="grid grid-cols-2 gap-8 pt-2 mt-2 border-t border-slate-300 text-[10px]">
+          <div className="text-center">
+            <p className="font-bold text-slate-600 text-[9px] uppercase mb-10">
+              Disediakan Oleh (Guru Kelas / Penyelaras Tahun 4):
+            </p>
+            <div className="border-b border-slate-400 w-3/4 mx-auto mb-1"></div>
+            <p className="font-bold text-slate-800 text-[9px]">Nama: ......................................................</p>
+            <p className="text-[8px] text-slate-500">Tarikh: ..............................</p>
+          </div>
+          <div className="text-center">
+            <p className="font-bold text-slate-600 text-[9px] uppercase mb-10">
+              Disahkan Oleh & Cop Rasmi Sekolah:
+            </p>
+            <div className="border-b border-slate-400 w-3/4 mx-auto mb-1"></div>
+            <p className="font-bold text-slate-800 text-[9px]">Guru Besar / Pengetua (SAS)</p>
+            <p className="text-[8px] text-slate-500">Tarikh: ..............................</p>
+          </div>
+        </div>
+
+        {/* Footer note */}
+        <div className="text-center text-[8px] text-slate-400 mt-3 border-t border-slate-100 pt-1">
+          Dokumen ini dijana secara rasmi melalui Sistem my_SAS_MATRIKS (SBPPA KPM) Sekolah Agama Suria, Tuaran (XCA4301).
+        </div>
+      </div>
+    )}
+  </>
+);
 };
