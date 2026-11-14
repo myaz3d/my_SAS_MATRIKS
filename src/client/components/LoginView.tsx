@@ -39,7 +39,7 @@ export const LoginView: React.FC = () => {
   const demoAccounts = [
     {
       role: 'SUPER_ADMIN',
-      title: 'Guru Besar / Pentadbir',
+      title: 'Pentadbir Utama Sistem (Super Admin)',
       name: 'Puan Maimunah Binti Tajuddin',
       email: 'admin@sekolah.edu.my',
       password: 'admin123',

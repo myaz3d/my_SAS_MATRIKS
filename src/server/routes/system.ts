@@ -246,7 +246,7 @@ router.get('/pending-workflow-users', async (req, res) => {
         userName: superAdmin.name,
         userEmail: superAdmin.email,
         userRole: superAdmin.role,
-        roleTitle: 'Guru Besar / Pentadbir Utama',
+        roleTitle: 'Pentadbir Utama Sistem',
         taskType: 'Kelulusan Rasmi Pentadbir Sekolah',
         scope: 'Tahun 4 • Semua Mata Pelajaran',
         className: 'Semua Kelas',
@@ -322,7 +322,7 @@ router.post('/settings/integration', async (req, res) => {
     } = req.body;
 
     if (userRole !== 'SUPER_ADMIN') {
-      return res.status(403).json({ error: 'Hanya Pentadbir Sekolah (Guru Besar) boleh mengubah konfigurasi integrasi SBPPA.' });
+      return res.status(403).json({ error: 'Hanya Pentadbir Sistem boleh mengubah konfigurasi integrasi SBPPA.' });
     }
 
     const isFullyAuthorized = hasWrittenAuthorization && hasApprovedApiDoc && hasSandboxCredentials && hasAdminApproval;

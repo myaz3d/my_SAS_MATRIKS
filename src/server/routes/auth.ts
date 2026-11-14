@@ -118,11 +118,11 @@ router.get('/users/:id', async (req, res) => {
       summary: {
         totalAssignments: user.teacherAssignments.length,
         role: user.role,
-        roleTitle: user.role === 'SUPER_ADMIN' ? 'Guru Besar / Pentadbir Utama'
+        roleTitle: user.role === 'SUPER_ADMIN' ? 'Pentadbir Utama Sistem (Super Admin)'
           : user.role === 'COORDINATOR' ? 'Penyelaras Matriks Pembelajaran'
           : user.role === 'KPMP' ? `Ketua Panitia (${user.subjectHeadOf || 'Umum'})`
           : user.role === 'DATA_OFFICER' ? 'Pegawai Data Sekolah'
-          : user.role === 'LEADER' ? 'Penolong Kanan Pentadbiran'
+          : user.role === 'LEADER' ? 'Pihak Pengurusan / Pentadbir Sekolah'
           : 'Guru Mata Pelajaran',
       },
     });
@@ -159,7 +159,7 @@ router.post('/login', async (req, res) => {
 
     // Verify password if provided
     if (password && user.passwordHash && password !== user.passwordHash) {
-      return res.status(401).json({ error: 'Kata laluan tidak tepat. Sila semak semula atau hubungi Guru Besar / Pentadbir.' });
+      return res.status(401).json({ error: 'Kata laluan tidak tepat. Sila semak semula atau hubungi Pentadbir Sistem.' });
     }
 
     // Log the login audit event

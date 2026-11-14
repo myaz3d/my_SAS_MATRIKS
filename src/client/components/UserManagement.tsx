@@ -334,11 +334,6 @@ export const UserManagement: React.FC = () => {
                         >
                           <span>{user.name}</span>
                           <ChevronRight className="w-3.5 h-3.5 text-amber-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition shrink-0" />
-                          {user.role === 'SUPER_ADMIN' && (
-                            <span className="text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.2 rounded-full">
-                              Guru Besar
-                            </span>
-                          )}
                         </button>
                       </td>
                       <td className="py-3 px-3 font-mono text-slate-600">
@@ -388,7 +383,7 @@ export const UserManagement: React.FC = () => {
                           <button
                             onClick={() => handleDeleteUser(user)}
                             disabled={isCurrentSuperAdmin}
-                            title={isCurrentSuperAdmin ? t('Akaun Guru Besar Utama tidak boleh dipadam', 'Primary Admin cannot be deleted') : t('Padam Pengguna', 'Delete User')}
+                            title={isCurrentSuperAdmin ? t('Akaun Pentadbir Utama tidak boleh dipadam', 'Primary Admin cannot be deleted') : t('Padam Pengguna', 'Delete User')}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

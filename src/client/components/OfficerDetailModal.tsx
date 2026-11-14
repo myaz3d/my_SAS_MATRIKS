@@ -102,16 +102,16 @@ export const OfficerDetailModal: React.FC<OfficerDetailModalProps> = ({
 
   const roleMeta: Record<string, { title: string; color: string; desc: string; badge: string }> = {
     SUPER_ADMIN: {
-      title: 'Guru Besar / Pentadbir Utama',
+      title: 'Pentadbir Utama Sistem (Super Admin)',
       color: 'bg-rose-100 text-[#7D121D] border-rose-300',
       badge: 'bg-[#7D121D] text-white',
-      desc: 'Mempunyai kuasa tertinggi dalam sistem: pengesahan dan kelulusan rasmi rekod sekolah, penutupan kitaran berkanun, pentadbiran ID pegawai, dan kelulusan akhir fail SBPPA.',
+      desc: 'Mempunyai kawalan teknikal dan pentadbiran penuh ke atas konfigurasi sistem my_SAS_MATRIKS, pengurusan akaun ID pengguna, dan pengawalan akses operasi pentaksiran sekolah.',
     },
     LEADER: {
-      title: 'Penolong Kanan Pentadbiran',
+      title: 'Pihak Pengurusan / Pentadbir Sekolah',
       color: 'bg-purple-100 text-purple-900 border-purple-300',
       badge: 'bg-purple-700 text-white',
-      desc: 'Membantu pentadbir dalam pemantauan aliran kerja pentaksiran bilik darjah dan semakan status operasi akademik sekolah.',
+      desc: 'Membantu pihak pengurusan sekolah dalam pemantauan aliran kerja pentaksiran bilik darjah dan semakan status operasi akademik sekolah.',
     },
     COORDINATOR: {
       title: 'Penyelaras Matriks Pembelajaran (PBD/SBPPA)',
