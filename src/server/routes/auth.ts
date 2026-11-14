@@ -24,6 +24,113 @@ router.get('/users', async (req, res) => {
   }
 });
 
+// Get single user/officer profile with live assignments & stats
+router.get('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { cycleId } = req.query;
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        school: true,
+        teacherAssignments: {
+          include: {
+            class: true,
+            subject: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Pegawai tidak ditemui' });
+    }
+
+    const cycleWhere: any = {};
+    if (cycleId && typeof cycleId === 'string' && cycleId !== 'ALL') {
+      cycleWhere.cycleId = cycleId;
+    }
+
+    const allRecords = await prisma.scoreRecord.findMany({
+      where: cycleWhere,
+      include: {
+        class: true,
+        subject: true,
+        moderations: true,
+      },
+    });
+
+    // Detailed stats for teacher assignments
+    const assignmentsWithStats = user.teacherAssignments.map(assign => {
+      const records = allRecords.filter(
+        r => r.classId === assign.classId && r.subjectId === assign.subjectId
+      );
+      const total = records.length;
+      const draft = records.filter(r => r.status === 'DRAFT').length;
+      const submitted = records.filter(r => r.status === 'SUBMITTED' || r.status === 'VALIDATED').length;
+      const approved = records.filter(r => r.status === 'APPROVED' || r.status === 'EXPORT_READY' || r.status === 'LOCKED').length;
+      const scores = records.filter(r => r.rawScore !== null).map(r => r.rawScore as number);
+      const avgScore = scores.length > 0 ? Number((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)) : null;
+
+      return {
+        id: assign.id,
+        classId: assign.classId,
+        className: assign.class.name,
+        subjectId: assign.subjectId,
+        subjectCode: assign.subject.code,
+        subjectName: assign.subject.name,
+        totalStudents: total,
+        draftCount: draft,
+        submittedCount: submitted,
+        approvedCount: approved,
+        averageScore: avgScore,
+        status: draft > 0 ? 'DRAFT_PENDING' : total === 0 ? 'NOT_STARTED' : 'COMPLETED',
+      };
+    });
+
+    // Panitia stats if KPMP
+    let panitiaStats = null;
+    if (user.role === 'KPMP' && user.subjectHeadOf) {
+      const panitiaRecords = allRecords.filter(r => r.subject.code === user.subjectHeadOf);
+      const total = panitiaRecords.length;
+      const sampled = panitiaRecords.filter(r => r.isSampled).length;
+      const required = Math.ceil(total * 0.1);
+      const moderated = panitiaRecords.filter(r => r.status === 'MODERATED' || r.status === 'APPROVED' || r.status === 'EXPORT_READY').length;
+      const quorumRate = total > 0 ? Number(((sampled / total) * 100).toFixed(1)) : 0;
+
+      panitiaStats = {
+        subjectCode: user.subjectHeadOf,
+        subjectName: panitiaRecords[0]?.subject.name || user.subjectHeadOf,
+        totalRecords: total,
+        sampledCount: sampled,
+        requiredCount: required,
+        moderatedCount: moderated,
+        quorumRate,
+        isQuorumMet: sampled >= required && required > 0,
+      };
+    }
+
+    res.json({
+      user,
+      assignments: assignmentsWithStats,
+      panitiaStats,
+      summary: {
+        totalAssignments: user.teacherAssignments.length,
+        role: user.role,
+        roleTitle: user.role === 'SUPER_ADMIN' ? 'Guru Besar / Pentadbir Utama'
+          : user.role === 'COORDINATOR' ? 'Penyelaras Matriks Pembelajaran'
+          : user.role === 'KPMP' ? `Ketua Panitia (${user.subjectHeadOf || 'Umum'})`
+          : user.role === 'DATA_OFFICER' ? 'Pegawai Data Sekolah'
+          : user.role === 'LEADER' ? 'Penolong Kanan Pentadbiran'
+          : 'Guru Mata Pelajaran',
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Login endpoint
 router.post('/login', async (req, res) => {
   try {

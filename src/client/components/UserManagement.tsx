@@ -13,10 +13,12 @@ import {
   UserCheck,
   Building,
   Mail,
-  GraduationCap
+  GraduationCap,
+  ChevronRight
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../../shared/types';
+import { OfficerDetailModal } from './OfficerDetailModal';
 
 export const UserManagement: React.FC = () => {
   const { currentUser, t } = useApp();
@@ -26,6 +28,7 @@ export const UserManagement: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
+  const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
 
   // Modals
   const [createModal, setCreateModal] = useState<boolean>(false);
@@ -324,14 +327,19 @@ export const UserManagement: React.FC = () => {
                         {user.id.slice(0, 14)}...
                       </td>
                       <td className="py-3 px-3">
-                        <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                          {user.name}
+                        <button
+                          onClick={() => setSelectedOfficerId(user.id)}
+                          className="font-bold text-[#7D121D] hover:text-[#580B12] hover:underline transition cursor-pointer flex items-center gap-1.5 text-left group"
+                          title={t('Klik untuk lihat maklumat peranan dan penugasan rasmi', 'Click to view official role and assignments')}
+                        >
+                          <span>{user.name}</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-amber-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition shrink-0" />
                           {user.role === 'SUPER_ADMIN' && (
                             <span className="text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.2 rounded-full">
                               Guru Besar
                             </span>
                           )}
-                        </div>
+                        </button>
                       </td>
                       <td className="py-3 px-3 font-mono text-slate-600">
                         {user.email}
@@ -668,6 +676,12 @@ export const UserManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Official Officer Profile & Assignment Detail Modal */}
+      <OfficerDetailModal
+        userId={selectedOfficerId}
+        onClose={() => setSelectedOfficerId(null)}
+      />
     </div>
   );
 };

@@ -23,6 +23,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { OfficerDetailModal } from './OfficerDetailModal';
 
 interface OfficerDashboardStats {
   totalStudents: number;
@@ -51,6 +52,7 @@ export const OfficerDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
   const [selectedTaskFilter, setSelectedTaskFilter] = useState<string>('ALL');
   const [taskSearch, setTaskSearch] = useState<string>('');
+  const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
 
   const roleBadgeColor: Record<string, string> = {
     SUPER_ADMIN: 'bg-rose-100 text-[#7D121D] border-rose-300 font-bold',
@@ -452,7 +454,14 @@ export const OfficerDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
                           {task.userName.charAt(0)}
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900 leading-tight">{task.userName}</div>
+                          <button
+                            onClick={() => setSelectedOfficerId(task.userId)}
+                            className="font-bold text-[#7D121D] hover:text-[#580B12] hover:underline transition cursor-pointer text-left flex items-center gap-1 group leading-tight"
+                            title="Klik untuk lihat maklumat peranan dan penugasan rasmi pegawai"
+                          >
+                            <span>{task.userName}</span>
+                            <ChevronRight className="w-3 h-3 text-amber-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition shrink-0" />
+                          </button>
                           <div className="text-[10px] text-slate-500 font-mono mt-0.5 truncate max-w-[150px]">
                             ID: <span className="text-[#7D121D] font-bold">{task.userId.substring(0, 10)}...</span>
                           </div>
@@ -495,6 +504,13 @@ export const OfficerDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
           </table>
         </div>
       </div>
+
+      {/* Official Officer Profile & Assignment Detail Modal */}
+      <OfficerDetailModal
+        userId={selectedOfficerId}
+        onClose={() => setSelectedOfficerId(null)}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 };
