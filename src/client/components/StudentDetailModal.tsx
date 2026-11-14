@@ -144,7 +144,353 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ studentI
   };
 
   const handlePrint = () => {
-    window.print();
+    if (!data) return;
+
+    // Use an isolated hidden iframe so browser prints ONLY the 1-page slip and excludes background DOM
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    const mykidDisplay = formatMyKid(data.student.mykid);
+    const dateStr = new Date().toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html lang="ms">
+        <head>
+          <meta charset="utf-8" />
+          <title>Slip Pentaksiran - ${data.student.fullName} (${data.student.studentId})</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 8mm 10mm;
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            html, body {
+              width: 100%;
+              height: 100%;
+              background: #ffffff;
+              color: #0f172a;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              font-size: 10.5px;
+              line-height: 1.35;
+            }
+            .slip-wrapper {
+              width: 100%;
+              max-width: 100%;
+              page-break-inside: avoid;
+              page-break-after: avoid;
+              break-inside: avoid;
+            }
+            .header-table {
+              width: 100%;
+              border-bottom: 2.5px solid #7D121D;
+              padding-bottom: 6px;
+              margin-bottom: 6px;
+            }
+            .title-box {
+              text-align: center;
+              margin: 6px 0 8px 0;
+            }
+            .title-box h2 {
+              font-size: 13px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #0f172a;
+            }
+            .title-box p {
+              font-size: 10px;
+              color: #475569;
+              font-weight: 600;
+            }
+            .student-card {
+              border: 1px solid #cbd5e1;
+              border-radius: 6px;
+              padding: 8px 12px;
+              margin-bottom: 8px;
+              background-color: #f8fafc;
+            }
+            .student-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              column-gap: 16px;
+              row-gap: 3px;
+            }
+            .grid-row {
+              display: flex;
+              align-items: baseline;
+            }
+            .grid-label {
+              width: 110px;
+              font-weight: 700;
+              color: #475569;
+              font-size: 10px;
+            }
+            .grid-val {
+              font-weight: 800;
+              color: #0f172a;
+              font-size: 11px;
+            }
+            .score-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 8px;
+            }
+            .score-table th, .score-table td {
+              border: 1px solid #cbd5e1;
+              padding: 4px 6px;
+            }
+            .score-table th {
+              background-color: #f1f5f9;
+              color: #1e293b;
+              font-weight: 800;
+              font-size: 9.5px;
+              text-align: left;
+            }
+            .score-table td {
+              font-size: 10px;
+            }
+            .kpi-grid {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 6px;
+              margin-bottom: 8px;
+              text-align: center;
+            }
+            .kpi-box {
+              border: 1px solid #cbd5e1;
+              border-radius: 5px;
+              padding: 5px;
+              background: #f8fafc;
+            }
+            .kpi-label {
+              font-size: 8.5px;
+              font-weight: 700;
+              color: #64748b;
+              text-transform: uppercase;
+            }
+            .kpi-val {
+              font-size: 12px;
+              font-weight: 900;
+              color: #7D121D;
+              margin-top: 2px;
+            }
+            .scale-ref {
+              border: 1px solid #e2e8f0;
+              border-radius: 4px;
+              padding: 4px 6px;
+              margin-bottom: 12px;
+              background: #fafafa;
+              font-size: 8px;
+              color: #475569;
+            }
+            .sig-table {
+              width: 100%;
+              margin-top: 12px;
+              padding-top: 6px;
+              border-top: 1px solid #cbd5e1;
+            }
+            .sig-col {
+              width: 50%;
+              text-align: center;
+              vertical-align: top;
+              padding: 0 15px;
+            }
+            .sig-line {
+              border-bottom: 1px solid #64748b;
+              width: 75%;
+              margin: 40px auto 4px auto;
+            }
+            .footer-text {
+              text-align: center;
+              font-size: 8px;
+              color: #94a3b8;
+              margin-top: 8px;
+              border-top: 1px solid #f1f5f9;
+              padding-top: 3px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="slip-wrapper">
+            <table class="header-table">
+              <tr>
+                <td style="width: 58px; vertical-align: middle;">
+                  <img src="/SAS.jpg" style="width: 50px; height: 50px; object-fit: contain;" />
+                </td>
+                <td style="vertical-align: middle; padding-left: 8px;">
+                  <h1 style="font-size: 14px; font-weight: 900; color: #7D121D; text-transform: uppercase; margin-bottom: 1px; letter-spacing: -0.2px;">
+                    Sekolah Agama Suria (SR SABK)
+                  </h1>
+                  <div style="font-size: 10px; font-weight: 700; color: #1e293b;">
+                    PPD TUARAN, SABAH • KOD SEKOLAH: XCA4301
+                  </div>
+                  <div style="font-size: 8.5px; color: #64748b;">
+                    Peti Surat 123, 89208 Tuaran, Sabah • E-mel: admin@sekolah.edu.my
+                  </div>
+                </td>
+                <td style="text-align: right; vertical-align: middle;">
+                  <div style="display: inline-block; background: #fffbeb; border: 1px solid #f59e0b; padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 800; color: #78350f;">
+                    SLIP RASMI SBPPA KPM
+                  </div>
+                  <div style="font-size: 8.5px; color: #64748b; margin-top: 2px; font-family: monospace;">
+                    Tarikh: ${dateStr}
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <div class="title-box">
+              <h2>Slip Keputusan Pentaksiran Matriks Pembelajaran Murid</h2>
+              <p>${activeCycle?.name || 'Kitaran 1 - Pertengahan Sesi 2026/2027'} • Tahun ${data.student.class?.gradeLevel || 4}</p>
+            </div>
+
+            <div class="student-card">
+              <div class="student-grid">
+                <div class="grid-row"><span class="grid-label">Nama Penuh:</span><span class="grid-val">${data.student.fullName}</span></div>
+                <div class="grid-row"><span class="grid-label">Kelas:</span><span class="grid-val">${data.student.class?.name || 'Tahun 4'}</span></div>
+                <div class="grid-row"><span class="grid-label">No. Pendaftaran:</span><span class="grid-val" style="font-family: monospace;">${data.student.studentId}</span></div>
+                <div class="grid-row"><span class="grid-label">Jantina:</span><span class="grid-val">${data.student.gender === 'L' ? 'Lelaki' : 'Perempuan'}</span></div>
+                <div class="grid-row"><span class="grid-label">No. MyKid:</span><span class="grid-val" style="font-family: monospace;">${mykidDisplay}</span></div>
+                <div class="grid-row"><span class="grid-label">Status Enrolmen:</span><span class="grid-val" style="color: #065f46;">Aktif Berdaftar</span></div>
+              </div>
+            </div>
+
+            <table class="score-table">
+              <thead>
+                <tr>
+                  <th style="width: 30px; text-align: center;">BIL</th>
+                  <th style="width: 45px; text-align: center;">KOD</th>
+                  <th>MATA PELAJARAN</th>
+                  <th style="width: 90px; text-align: center;">SKOR MENTAH</th>
+                  <th style="width: 135px; text-align: center;">TAHAP PENGUASAAN</th>
+                  <th>CATATAN / STATUS ALIRAN</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.subjectScores.map((sub, i) => {
+                  const tp = getTPBadge(sub.masteryLevel);
+                  return `
+                    <tr>
+                      <td style="text-align: center; font-family: monospace; font-size: 9px;">${i + 1}</td>
+                      <td style="text-align: center; font-weight: 700; font-family: monospace;">${sub.code}</td>
+                      <td>
+                        <div style="font-weight: 800; color: #0f172a;">${sub.name}</div>
+                        ${sub.submittedBy ? `<div style="font-size: 8px; color: #64748b;">Guru: ${sub.submittedBy}</div>` : ''}
+                      </td>
+                      <td style="text-align: center; font-weight: 800;">
+                        ${sub.rawScore !== null ? `<span style="${sub.rawScore < 40 ? 'color: #e11d48;' : 'color: #0f172a;'}">${sub.rawScore} / 100</span>` : '<span style="color: #94a3b8; font-style: italic; font-size: 8.5px;">Belum Diisi</span>'}
+                      </td>
+                      <td style="text-align: center;">
+                        <span style="display: inline-block; padding: 1.5px 5px; border-radius: 4px; font-weight: 800; font-size: 8.5px; border: 1px solid #cbd5e1; background: #f8fafc;">
+                          ${tp.label}
+                        </span>
+                      </td>
+                      <td style="font-size: 8.5px; color: #334155;">
+                        ${sub.isSampled ? 'Sampel Rawak KPMP Disahkan' : sub.hasRecord ? 'Rekod Lengkap Draf/Disemak' : 'Belum Ditaksir'}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+
+            <div class="kpi-grid">
+              <div class="kpi-box">
+                <div class="kpi-label">Purata Skor</div>
+                <div class="kpi-val">${data.stats.averageScore !== null ? `${data.stats.averageScore}%` : '—'}</div>
+              </div>
+              <div class="kpi-box">
+                <div class="kpi-label">Tahap Capaian</div>
+                <div class="kpi-val" style="color: #0f172a; font-size: 11px;">
+                  ${data.stats.averageScore !== null ? (
+                    data.stats.averageScore >= 85 ? 'TP6 (Cemerlang)' :
+                    data.stats.averageScore >= 70 ? 'TP5 (Sangat Baik)' :
+                    data.stats.averageScore >= 55 ? 'TP4 (Baik)' :
+                    data.stats.averageScore >= 40 ? 'TP3 (Memuaskan)' :
+                    data.stats.averageScore >= 20 ? 'TP2 (Bimbingan)' : 'TP1'
+                  ) : '—'}
+                </div>
+              </div>
+              <div class="kpi-box">
+                <div class="kpi-label">Tahap Min KPM</div>
+                <div class="kpi-val" style="color: #0f172a; font-size: 11px;">
+                  ${data.stats.tpCounts.TP3 + data.stats.tpCounts.TP4 + data.stats.tpCounts.TP5 + data.stats.tpCounts.TP6} / ${data.stats.recordedSubjects} Subjek
+                </div>
+              </div>
+              <div class="kpi-box" style="${data.stats.needsIntervention ? 'background: #fff1f2; border-color: #f43f5e;' : 'background: #ecfdf5; border-color: #10b981;'}">
+                <div class="kpi-label">Status Intervensi</div>
+                <div class="kpi-val" style="font-size: 10px; ${data.stats.needsIntervention ? 'color: #9f1239;' : 'color: #065f46;'}">
+                  ${data.stats.needsIntervention ? 'Perlu Intervensi' : 'Memuaskan'}
+                </div>
+              </div>
+            </div>
+
+            <div class="scale-ref">
+              <strong>Rujukan Skala Tahap Penguasaan (TP) Rasmi KPM: </strong>
+              TP1 (0-19: Bimbingan Rapi) • TP2 (20-39: Perlu Bimbingan) • TP3 (40-54: Memuaskan - Tahap Min KPM) • TP4 (55-69: Baik) • TP5 (70-84: Sangat Baik) • TP6 (85-100: Cemerlang)
+            </div>
+
+            <table class="sig-table">
+              <tr>
+                <td class="sig-col">
+                  <div style="font-weight: 700; color: #475569; font-size: 9px; text-transform: uppercase;">
+                    Disediakan Oleh (Guru Kelas / Penyelaras Tahun 4):
+                  </div>
+                  <div class="sig-line"></div>
+                  <div style="font-weight: 800; font-size: 9px; color: #0f172a;">Nama: ......................................................</div>
+                  <div style="font-size: 8px; color: #64748b;">Tarikh: ..............................</div>
+                </td>
+                <td class="sig-col">
+                  <div style="font-weight: 700; color: #475569; font-size: 9px; text-transform: uppercase;">
+                    Disahkan Oleh & Cop Rasmi Sekolah:
+                  </div>
+                  <div class="sig-line"></div>
+                  <div style="font-weight: 800; font-size: 9px; color: #0f172a;">Guru Besar / Pengetua (SAS)</div>
+                  <div style="font-size: 8px; color: #64748b;">Tarikh: ..............................</div>
+                </td>
+              </tr>
+            </table>
+
+            <div class="footer-text">
+              Dokumen ini dijana secara rasmi melalui Sistem my_SAS_MATRIKS (SBPPA KPM) Sekolah Agama Suria, Tuaran (XCA4301).
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (e) {
+        console.error('Print error:', e);
+      } finally {
+        setTimeout(() => {
+          if (iframe.parentNode) {
+            iframe.parentNode.removeChild(iframe);
+          }
+        }, 3000);
+      }
+    }, 300);
   };
 
   const formatMyKid = (mykid: string) => {
