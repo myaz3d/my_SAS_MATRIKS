@@ -15,7 +15,8 @@ import {
   ArrowRight,
   UserCheck,
   CheckCircle2,
-  Briefcase
+  Briefcase,
+  X
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StudentDetailModal } from './StudentDetailModal';
@@ -45,6 +46,7 @@ export const StudentDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
   const [studentSearch, setStudentSearch] = useState<string>('');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('ALL');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [showInterventionModal, setShowInterventionModal] = useState<boolean>(false);
 
   useEffect(() => {
     if (!activeCycle) return;
@@ -101,11 +103,14 @@ export const StudentDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
   ];
 
   const filteredInterventions = interventionList.filter(st => {
-    const matchesClass = selectedClassFilter === 'ALL' || st.class === selectedClassFilter;
+    const sName = st.studentName || st.name || '';
+    const sClass = st.className || st.class || '';
+    const sSubject = st.subjectName ? `${st.subjectCode ? st.subjectCode + ' ' : ''}${st.subjectName}` : (st.subject || '');
+    const matchesClass = selectedClassFilter === 'ALL' || sClass === selectedClassFilter;
     const matchesSearch = !studentSearch.trim() || 
-      st.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      sName.toLowerCase().includes(studentSearch.toLowerCase()) ||
       (st.mykid && st.mykid.includes(studentSearch)) ||
-      (st.subject && st.subject.toLowerCase().includes(studentSearch.toLowerCase()));
+      sSubject.toLowerCase().includes(studentSearch.toLowerCase());
     return matchesClass && matchesSearch;
   });
 
@@ -202,6 +207,7 @@ export const StudentDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
 
             <div 
               onClick={() => {
+                setShowInterventionModal(true);
                 const el = document.getElementById('intervention-section');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
@@ -470,43 +476,173 @@ export const StudentDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
                   </td>
                 </tr>
               ) : (
-                filteredInterventions.map((st, idx) => (
-                  <tr key={idx} className="hover:bg-rose-50/40 transition">
-                    <td className="py-2.5 px-3">
-                      <button
-                        onClick={() => setSelectedStudentId(st.studentId || st.id)}
-                        className="text-left font-bold text-[#7D121D] hover:text-[#580B12] hover:underline transition cursor-pointer flex items-center gap-1 group"
-                        title="Klik untuk lihat profil murid dan markah penuh"
-                      >
-                        <span>{st.name}</span>
-                        <ChevronRight className="w-3.5 h-3.5 text-amber-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition shrink-0" />
-                      </button>
-                      {st.mykid && (
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          {maskPII ? '******-**-****' : st.mykid}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-700">{st.class}</td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-700">{st.subject}</td>
-                    <td className="py-2.5 px-3 text-center font-black text-rose-600 bg-rose-50/50 rounded">
-                      {st.score} / 100
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span className="text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full">
-                        {st.tp || 'TP2 - Perlu Bimbingan'}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-600 text-[11px]">
-                      {st.recommendedAction || 'Modul Pemulihan & Pengukuhan Berjadual Panitia'}
-                    </td>
-                  </tr>
-                ))
+                filteredInterventions.map((st, idx) => {
+                  const sName = st.studentName || st.name;
+                  const sClass = st.className || st.class;
+                  const sSubject = st.subjectName ? `${st.subjectCode ? st.subjectCode + ' • ' : ''}${st.subjectName}` : (st.subject || '—');
+                  const sScore = st.rawScore !== undefined ? st.rawScore : st.score;
+                  const sTp = st.masteryLabel || (st.masteryLevel ? `TP${st.masteryLevel}` : st.tp) || 'TP2 - Perlu Bimbingan';
+                  const sAction = st.suggestedIntervention || st.recommendedAction || 'Modul Pemulihan & Pengukuhan Berjadual Panitia';
+                  const sId = st.studentId || st.id;
+
+                  return (
+                    <tr key={idx} className="hover:bg-rose-50/40 transition">
+                      <td className="py-2.5 px-3">
+                        <button
+                          onClick={() => setSelectedStudentId(sId)}
+                          className="text-left font-bold text-[#7D121D] hover:text-[#580B12] hover:underline transition cursor-pointer flex items-center gap-1 group"
+                          title="Klik untuk lihat profil murid dan markah penuh"
+                        >
+                          <span>{sName}</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-amber-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition shrink-0" />
+                        </button>
+                        {st.mykid && (
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {maskPII ? '******-**-****' : st.mykid}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-slate-700">{sClass}</td>
+                      <td className="py-2.5 px-3 font-semibold text-slate-700">{sSubject}</td>
+                      <td className="py-2.5 px-3 text-center font-black text-rose-600 bg-rose-50/50 rounded">
+                        {sScore !== null && sScore !== undefined ? `${sScore} / 100` : '—'}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full inline-block">
+                          {sTp}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600 text-[11px]">
+                        {sAction}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Modal Senarai Murid Perlu Intervensi (Dipaparkan apabila kad Perlu Intervensi diklik) */}
+      {showInterventionModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 overflow-y-auto animate-fadeIn">
+          <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl border border-rose-300/50 overflow-hidden my-auto max-h-[90vh] flex flex-col">
+            <div className="bg-gradient-to-r from-[#580B12] via-[#7D121D] to-[#9B1C2A] text-white px-5 sm:px-6 py-4 flex items-center justify-between border-b border-amber-400/30 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-400/40 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-6 h-6 text-rose-300" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-rose-200 bg-black/30 px-2 py-0.5 rounded-full border border-rose-400/30">
+                      Tindakan Panitia Segera
+                    </span>
+                    <span className="text-xs text-amber-200/90 font-medium">
+                      {activeCycle?.name || 'Sesi 2026/2027'}
+                    </span>
+                  </div>
+                  <h2 className="text-base sm:text-lg font-black text-white mt-0.5">
+                    Senarai Murid Memerlukan Bimbingan Intervensi ({interventionList.length} Murid)
+                  </h2>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowInterventionModal(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+                title="Tutup"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-900 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>
+                  Murid berikut mencatat skor mentah bawah 40 (Tahap Penguasaan TP1 / TP2) dalam instrumen pentaksiran aktif SAS dan memerlukan modul intervensi panitia segera.
+                </span>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
+                    <tr>
+                      <th className="py-2.5 px-3 w-10 text-center">#</th>
+                      <th className="py-2.5 px-3">Nama Penuh Murid</th>
+                      <th className="py-2.5 px-3">Kelas</th>
+                      <th className="py-2.5 px-3">Mata Pelajaran</th>
+                      <th className="py-2.5 px-3 text-center">Skor Mentah</th>
+                      <th className="py-2.5 px-3 text-center">Tahap</th>
+                      <th className="py-2.5 px-3 text-right">Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {interventionList.map((st, i) => {
+                      const sName = st.studentName || st.name;
+                      const sClass = st.className || st.class;
+                      const sSubject = st.subjectName ? `${st.subjectCode ? st.subjectCode + ' • ' : ''}${st.subjectName}` : (st.subject || '—');
+                      const sScore = st.rawScore !== undefined ? st.rawScore : st.score;
+                      const sTp = st.masteryLabel || (st.masteryLevel ? `TP${st.masteryLevel}` : st.tp) || 'TP2';
+                      const sId = st.studentId || st.id;
+
+                      return (
+                        <tr key={i} className="hover:bg-rose-50/30 transition">
+                          <td className="py-2.5 px-3 text-center font-mono text-slate-400 text-[11px]">{i + 1}</td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-extrabold text-slate-900">{sName}</div>
+                            {st.mykid && (
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                {maskPII ? '******-**-****' : st.mykid}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-slate-700">{sClass}</td>
+                          <td className="py-2.5 px-3 font-semibold text-slate-700">{sSubject}</td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className="font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                              {sScore} / 100
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className="text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full">
+                              {sTp}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right">
+                            <button
+                              onClick={() => {
+                                setShowInterventionModal(false);
+                                setSelectedStudentId(sId);
+                              }}
+                              className="bg-[#7D121D] hover:bg-[#580B12] text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl transition cursor-pointer shadow-xs inline-flex items-center gap-1"
+                            >
+                              <span>Lihat Profil & Markah</span>
+                              <ChevronRight className="w-3 h-3 text-amber-300" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="bg-slate-100 px-5 sm:px-6 py-3 border-t border-slate-200 flex items-center justify-between shrink-0">
+              <span className="text-xs text-slate-500">
+                Jumlah Murid Perlu Intervensi: <strong>{interventionList.length} Murid</strong>
+              </span>
+              <button
+                onClick={() => setShowInterventionModal(false)}
+                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Student Profile & Full Score Detail Modal */}
       <StudentDetailModal
