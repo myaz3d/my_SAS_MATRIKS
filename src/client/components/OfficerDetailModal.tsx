@@ -296,7 +296,9 @@ export const OfficerDetailModal: React.FC<OfficerDetailModalProps> = ({
                       {data.user.role === 'TEACHER' 
                         ? `Senarai Penugasan Mengajar (${data.assignments.length} Penugasan)`
                         : data.user.role === 'KPMP' 
-                        ? 'Penugasan Mengajar & Tanggungjawab Panitia'
+                        ? `Penugasan Mengajar & Tanggungjawab Panitia (${data.assignments.length} Penugasan)`
+                        : data.assignments.length > 0
+                        ? `Senarai Penugasan Mengajar (${data.assignments.length} Penugasan)`
                         : 'Skop Pengurusan Sekolah'}
                     </h4>
                   </div>

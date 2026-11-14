@@ -14,7 +14,8 @@ import {
   Building,
   Mail,
   GraduationCap,
-  ChevronRight
+  ChevronRight,
+  Award
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../../shared/types';
@@ -312,7 +313,7 @@ export const UserManagement: React.FC = () => {
                   <th className="py-3 px-3 min-w-[200px]">{t('Nama Penuh Pegawai', 'Official Full Name')}</th>
                   <th className="py-3 px-3">{t('Alamat Emel Rasmi', 'Official Email')}</th>
                   <th className="py-3 px-3 text-center w-36">{t('Peranan Sistem', 'System Role')}</th>
-                  <th className="py-3 px-3">{t('Panitia / Penugasan', 'Panitia / Assignment')}</th>
+                  <th className="py-3 px-3 min-w-[260px]">{t('Panitia / Penugasan (Beban Kerja)', 'Panitia / Workload Assignments')}</th>
                   <th className="py-3 px-3 text-center w-32">{t('Tindakan', 'Actions')}</th>
                 </tr>
               </thead>
@@ -345,21 +346,65 @@ export const UserManagement: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3 px-3 text-slate-700">
-                        {user.role === 'KPMP' ? (
-                          <span className="font-semibold text-orange-900 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded text-[11px]">
-                            Ketua Panitia ({user.subjectHeadOf || 'Umum'})
-                          </span>
-                        ) : user.teacherAssignments && user.teacherAssignments.length > 0 ? (
-                          <div className="space-y-0.5">
-                            {user.teacherAssignments.map((a: any, i: number) => (
-                              <span key={i} className="inline-block bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded text-[10px] mr-1">
-                                {a.class?.name}: {a.subject?.code}
+                        <div className="space-y-1.5">
+                          {/* Tanggungjawab Panitia / Peranan Pentadbiran Khas */}
+                          {(user.role === 'KPMP' || user.subjectHeadOf) && (
+                            <div>
+                              <span className="inline-flex items-center gap-1 font-bold text-orange-950 bg-orange-100/90 border border-orange-300 px-2 py-0.5 rounded text-[10px] shadow-2xs">
+                                <Award className="w-3 h-3 text-orange-700 shrink-0" />
+                                <span>Ketua Panitia ({user.subjectHeadOf || 'Umum'})</span>
                               </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 italic text-[11px]">-</span>
-                        )}
+                            </div>
+                          )}
+
+                          {user.role === 'COORDINATOR' && (
+                            <div>
+                              <span className="inline-flex items-center gap-1 font-bold text-amber-950 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded text-[10px]">
+                                <ShieldCheck className="w-3 h-3 text-amber-700 shrink-0" />
+                                <span>Penyelarasan PBD / SBPPA</span>
+                              </span>
+                            </div>
+                          )}
+
+                          {user.role === 'DATA_OFFICER' && (
+                            <div>
+                              <span className="inline-flex items-center gap-1 font-bold text-cyan-950 bg-cyan-100/90 border border-cyan-300 px-2 py-0.5 rounded text-[10px]">
+                                <ShieldCheck className="w-3 h-3 text-cyan-700 shrink-0" />
+                                <span>Pegawai Data SBPPA</span>
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Semua Penugasan Mengajar (Kelas & Subjek) */}
+                          {user.teacherAssignments && user.teacherAssignments.length > 0 ? (
+                            <div className="flex flex-wrap gap-1 items-center">
+                              {user.teacherAssignments.map((a: any, i: number) => (
+                                <span
+                                  key={i}
+                                  className="inline-flex items-center gap-1 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 px-2 py-0.5 rounded text-[10px] shadow-2xs font-medium"
+                                  title={`${a.class?.name || 'Kelas'}: ${a.subject?.code} (${a.subject?.name || ''})`}
+                                >
+                                  <span className="font-bold text-[#7D121D]">{a.class?.name}</span>
+                                  <span className="text-slate-300">:</span>
+                                  <span className="font-bold text-slate-900">{a.subject?.code}</span>
+                                </span>
+                              ))}
+                              <span className="text-[9px] font-bold text-[#7D121D] bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded text-nowrap">
+                                {user.teacherAssignments.length} Kelas
+                              </span>
+                            </div>
+                          ) : (
+                            user.role !== 'KPMP' && !user.subjectHeadOf && user.role !== 'COORDINATOR' && user.role !== 'DATA_OFFICER' && (
+                              user.role === 'SUPER_ADMIN' ? (
+                                <span className="text-slate-500 text-[11px] font-medium">Pentadbiran Peringkat Sekolah</span>
+                              ) : user.role === 'LEADER' ? (
+                                <span className="text-slate-500 text-[11px] font-medium">Pengurusan & Pemantauan Akademik</span>
+                              ) : (
+                                <span className="text-slate-400 italic text-[11px]">-</span>
+                              )
+                            )
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-3 text-center">
                         <div className="flex items-center justify-center gap-1">
@@ -596,6 +641,24 @@ export const UserManagement: React.FC = () => {
                       <option key={s.id} value={s.code}>{s.code} - {s.name}</option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {editModal.teacherAssignments && editModal.teacherAssignments.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <div className="text-[11px] font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span>{t('Beban Penugasan Mengajar Semasa', 'Current Teaching Load')}:</span>
+                    <span className="text-[10px] bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded font-bold text-[#7D121D]">
+                      {editModal.teacherAssignments.length} Kelas
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {editModal.teacherAssignments.map((a: any, i: number) => (
+                      <span key={i} className="inline-block bg-white text-slate-800 border border-slate-200 px-2 py-0.5 rounded text-[10px] font-medium shadow-2xs">
+                        <strong className="text-[#7D121D]">{a.class?.name}</strong>: {a.subject?.code} ({a.subject?.name})
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
 
