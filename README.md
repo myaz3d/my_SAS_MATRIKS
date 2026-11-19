@@ -2,6 +2,8 @@
 ### Sekolah Agama Suria, Tuaran, Sabah (Kod KPM: XCA4301)
 ### Aplikasi Sokongan Operasi Dalaman Sekolah & Penyediaan Pakej Pelaporan SBPPA KPM
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/myaz3d/my_SAS_MATRIKS)
+
 Aplikasi web bercirikan keselamatan tinggi dan berasaskan peranan (Role-Based Access Control) yang direka khas untuk **Sekolah Agama Suria (SAS)** di Tuaran, Sabah bagi mentadbir aliran kerja instrumen **Matriks Pembelajaran (MP)** serta menyediakan bahan pelaporan berformat rasmi untuk **Sistem Pengurusan Pentaksiran Berpusat (SBPPA)** Kementerian Pendidikan Malaysia (KPM).
 
 ---
