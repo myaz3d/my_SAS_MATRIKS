@@ -16,17 +16,6 @@
     "@libsql/client": "^0.15.15",
     "@prisma/adapter-libsql": "^7.10.1",
     "@prisma/client": "^7.10.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "lucide-react": "^0.475.0",
-    "prisma": "^7.10.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "tsx": "^4.19.2",
-    "xlsx": "^0.18.5"
-  },
-  "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
@@ -35,10 +24,21 @@
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "lucide-react": "^0.475.0",
     "postcss": "^8.5.2",
+    "prisma": "^7.10.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "tailwindcss": "^4.3.5",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vite": "^8.3.8",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
     "vitest": "^4.1.12"
   }
 }
